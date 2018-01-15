@@ -52,6 +52,7 @@ def register_uids(tixi3_handle):
     Gets all elements with uiDs and registers them
     :param tixi3_handle:
     """
+    print ("Registering all uIDs")
     paths = get_all_paths_matching(tixi3_handle, "//*[@uID]")
     for elem in paths:
         uid = tixi3_handle.getTextAttribute(elem, "uID")
@@ -86,11 +87,14 @@ def add_changelog(tixi3_handle):
 
 
 def get_all_paths_matching(tixi3, xpath):
-    n_nodes = tixi3.xPathEvaluateNodeNumber(xpath)
-    paths = []
-    for i in range(0, n_nodes):
-        paths.append(tixi3.xPathExpressionGetXPath(xpath, i+1))
-    return paths
+    try:
+        n_nodes = tixi3.xPathEvaluateNodeNumber(xpath)
+        paths = []
+        for i in range(0, n_nodes):
+            paths.append(tixi3.xPathExpressionGetXPath(xpath, i+1))
+        return paths
+    except Tixi3Exception:
+        return []
 
 
 def add_uid(tixi3, xpath, uid):
@@ -101,6 +105,7 @@ def add_uid(tixi3, xpath, uid):
 
 
 def add_missing_uids(tixi3):
+    print("Add missing uIDs")
     paths = get_all_paths_matching(tixi3, "//transformation")
     for path in paths:
         add_uid(tixi3, path, uidGenerator.create(tixi3, path))
@@ -109,7 +114,7 @@ def add_missing_uids(tixi3):
         add_uid(tixi3, path + "/translation", uidGenerator.create(tixi3, path + "/translation"))
 
     # add uids to positinings, lowerShells, upperShells, rotorBladeAttachments
-    xpath = '//positioning|//lowerShell|//upperShell|//rotorBladeAttachment'
+    xpath = '//positioning|//lowerShell|//upperShell|//rotorBladeAttachment|//ribRotation'
     try:
         paths = get_all_paths_matching(tixi3, xpath)
         for path in paths:
@@ -161,5 +166,6 @@ tigl2.open(old_cpacs_file, "")
 tigl3 = tigl3wrapper.Tigl3()
 tigl3.open(new_cpacs_file, "")
 
+print ("Done")
 old_cpacs_file.save(filename)
 new_cpacs_file.save(output_file)
