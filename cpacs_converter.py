@@ -1,3 +1,14 @@
+"""
+This tool converts CPACS file from Version 2 to 3.
+
+Currently is does:
+ - Adds missing uiDs
+ - Changes the version number
+
+Still to be implemented:
+ - Geometry of wing structure
+"""
+
 from __future__ import print_function
 
 import argparse
@@ -151,7 +162,6 @@ def main():
     parser.add_argument('-o', metavar='output_file', help='Name of the output file.')
 
     args = parser.parse_args()
-    # print(args.accumulate(args.integers))
 
     old_cpacs_file = tixiwrapper.Tixi()
     new_cpacs_file = tixi3wrapper.Tixi3()
