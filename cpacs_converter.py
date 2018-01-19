@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+import argparse
+
 from tigl import tiglwrapper
 from tigl3 import tigl3wrapper
 
@@ -143,29 +145,45 @@ def get_new_cs_coordinates(tigl2, tigl3, compseg_uid, eta_old, xsi_old):
     return tigl3.wingComponentSegmentPointGetEtaXsi(compseg_uid, px, py, pz)
 
 
-old_cpacs_file = tixiwrapper.Tixi()
-new_cpacs_file = tixi3wrapper.Tixi3()
+def main():
+    parser = argparse.ArgumentParser(description='Converts a CPACS file from Version 2 to Version 3.')
+    parser.add_argument('input_file', help='Input CPACS 2 file')
+    parser.add_argument('-o', metavar='output_file', help='Name of the output file.')
 
-filename = "simpletest-nacelle-mod.xml"
-output_file = "simpletest-nacelle-mod_old.cpacs.xml"
+    args = parser.parse_args()
+    # print(args.accumulate(args.integers))
 
-old_cpacs_file.open(filename)
-new_cpacs_file.open(filename)
-# new_cpacs_file.usePrettyPrint(1)
+    old_cpacs_file = tixiwrapper.Tixi()
+    new_cpacs_file = tixi3wrapper.Tixi3()
 
-register_uids(new_cpacs_file)
+    filename = args.input_file
+    output_file = args.o
 
-# perform structural changes
-change_cpacs_version(new_cpacs_file)
-add_missing_uids(new_cpacs_file)
-add_changelog(new_cpacs_file)
+    old_cpacs_file.open(filename)
+    new_cpacs_file.open(filename)
+    # new_cpacs_file.usePrettyPrint(1)
 
-tigl2 = tiglwrapper.Tigl()
-tigl2.open(old_cpacs_file, "")
+    register_uids(new_cpacs_file)
 
-tigl3 = tigl3wrapper.Tigl3()
-tigl3.open(new_cpacs_file, "")
+    # perform structural changes
+    change_cpacs_version(new_cpacs_file)
+    add_missing_uids(new_cpacs_file)
+    add_changelog(new_cpacs_file)
 
-print ("Done")
-old_cpacs_file.save(filename)
-new_cpacs_file.save(output_file)
+    tigl2 = tiglwrapper.Tigl()
+    tigl2.open(old_cpacs_file, "")
+
+    tigl3 = tigl3wrapper.Tigl3()
+    tigl3.open(new_cpacs_file, "")
+
+    print ("Done")
+    old_cpacs_file.save(filename)
+
+    if output_file is not None:
+        new_cpacs_file.save(output_file)
+    else:
+        print(new_cpacs_file.exportDocumentAsString())
+
+
+if __name__ == "__main__":
+    main()
