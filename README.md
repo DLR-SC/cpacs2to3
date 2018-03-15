@@ -4,7 +4,11 @@ A tool to convert CPACS files from version 2 to CPACS 3.
 ## Quickstart
 The simplest way to install cpacs2to3 is to use the conda package manager. The dependencies should be installed automatically and you should be ready to go:
 
-	$ conda install -c dlr-sc cpacs2to3 
+	$ conda create -n cpacs2to3 python=3.5 cpacs2to3 -c dlr-sc 
+	
+Enter the virtual environment
+
+	$ activate cpacs2to3
 
 To convert a cpacs file, just call cpacs2to3 with the file to convert. 
 
@@ -26,7 +30,7 @@ We are using TiXI to transform the xml. This is the easy part. The hard part is 
 ## Development
 cpacs2to3 requires tigl 2 and 3 in order to perform geometry conversions. The easiest way is to create a virtual conda environment 
 
-	$ conda create -n cpacs2to3_devel python=3.5 tigl3 tigl tixi3 tixi
+	$ conda create -n cpacs2to3_devel python=3.5 tigl3 tigl tixi3 tixi -c dlr-sc
 
 To enter this environment, enter
 
