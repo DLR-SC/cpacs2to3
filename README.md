@@ -2,12 +2,14 @@
 A tool to convert CPACS files from version 2 to CPACS 3.
 
 ## Quickstart
-Installation of cpacs2 follows the Python standard installation routine: Get the sources (e.g. using git) and run `setup.py install`. The dependencies should be installed automatically and you should be ready to go.
+The simplest way to install cpacs2to3 is to use the conda package manager. The dependencies should be installed automatically and you should be ready to go:
+
+	$ conda install -c dlr-sc cpacs2to3 
 
 To convert a cpacs file, just call cpacs2to3 with the file to convert. 
 
 	$ cpacs2to3 myaircraft.xml -o myaircraftv3.xml
-	
+
 If the output file is not specified, no file will be written, but the cpacs file will be printed to the standard out.
 
 ## What is converted at the moment?
@@ -20,6 +22,17 @@ We are planning to make this conversion process as complete as it can be. This i
 
 ## How does does it work?
 We are using TiXI to transform the xml. This is the easy part. The hard part is the geometry conversion. To support this process, we use both the TiGL 2 and the TiGL 3 library that are able to compute the geometries for both cpacs standards.
+
+## Development
+cpacs2to3 requires tigl 2 and 3 in order to perform geometry conversions. The easiest way is to create a virtual conda environment 
+
+	$ conda create -n cpacs2to3_devel python=3.5 tigl3 tigl tixi3 tixi
+
+To enter this environment, enter
+
+	$ activate cpacs2to3_devel
+
+cpacs2to3 can then be installed into this environment using the standard `python setup.py install` command.
 
 ## Legal stuff
 Copyright &copy; 2015-2016, German Aerospace Center (DLR e.V.)
