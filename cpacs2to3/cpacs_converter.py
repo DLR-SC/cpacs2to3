@@ -136,12 +136,16 @@ def add_missing_uids(tixi3):
     except Tixi3Exception:
         pass
 
+def findNearestCsOrTedUid(tixi3, xpath):
+    # find uid of nearest component segment or trailing edge device
+    end = [it.end() for it in re.finditer('(componentSegment|trailingEdgeDevice)(\[\d+\])?/', xpath)][-1]
+    csOrTedXPath = xpath[:end - 1]
+    uid = tixi3.getTextAttribute(csOrTedXPath, 'uID')
+    return uid
+        
 def convertIsoLineCoord(tixi3, xpath, elementName):
     for path in get_all_paths_matching(tixi3, xpath):
-        # find uid of nearest component segment or trailing edge device
-        end = [it.end() for it in re.finditer('(componentSegment|trailingEdgeDevice)(\[\d+\])?/', path)][-1]
-        csOrTedXPath = path[:end - 1]
-        uid = tixi3.getTextAttribute(csOrTedXPath, 'uID')
+        uid = findNearestCsOrTedUid(tixi3, path)
 
         # get existing eta/xsi value
         value = tixi3.getDoubleElement(path)
@@ -153,7 +157,7 @@ def convertIsoLineCoord(tixi3, xpath, elementName):
         tixi3.addTextElement(path, 'referenceUID', uid)
 
 
-def convertEtaXsi(tixi3):
+def convertEtaXsiIsoLines(tixi3):
     etaXpath = (
         '//track/eta|' +
         '//cutOutProfile/eta|' +
@@ -189,6 +193,48 @@ def convertEtaXsi(tixi3):
     )
     convertIsoLineCoord(tixi3, xsiXpath, 'xsi')
 
+def convertEtaXsiRelHeightPoints(tixi3):
+    xpath = '//sparPosition'
+
+    for path in get_all_paths_matching(tixi3, xpath):
+
+        # get existing xsi value
+        xsi = tixi3.getDoubleElement(path + '/xsi')
+        tixi3.removeElement(path + '/xsi')
+        
+        if tixi3.checkElement(path + '/eta'):
+            # if we have an eta, get it and find cs or ted uid
+            eta = tixi3.getDoubleElement(path + '/eta')
+            tixi3.removeElement(path + '/eta')
+            
+            uid = findNearestCsOrTedUid(tixi3, path)
+
+        else:
+            # in case of elementUID, find wing segment which references the element and convert to eta
+            elementUid = tixi3.getTextElement(path + '/elementUID')
+            tixi3.removeElement(path + '/elementUID')
+            
+            wingSegments = get_all_paths_matching(tixi3, '//wing/segments/segment[./toElementUID[text()=\'' + elementUid + '\']]')
+            if len(wingSegments) > 0:
+                eta = 1.0
+                uid = tixi3.getTextAttribute(wingSegments[0], 'uID')
+            else:
+                wingSegments = get_all_paths_matching(tixi3, '//wing/segments/segment[./fromElementUID[text()=\'' + elementUid + '\']]')
+                if len(wingSegments) > 0:
+                    eta = 0.0
+                    uid = tixi3.getTextAttribute(wingSegments[0], 'uID')
+                else:
+                    print ('Failed to find a wing segment referencing the section element with uid' + elementUid + '. Manual correction is necessary')
+                    eta = 0.0
+                    uid = 'TODO'
+
+        # add sub elements for rel height point
+        tixi3.createElement(path, 'sparPoint')
+        path = path + '/sparPoint'
+        tixi3.addDoubleElement(path, 'eta', eta, '%g')
+        tixi3.addDoubleElement(path, 'xsi', xsi, '%g')
+        tixi3.addTextElement(path, 'referenceUID', uid)
+    
 def get_parent_child_path(child_path):
     while child_path[-1] == '/':
         child_path = child_path[0:-1]
@@ -231,7 +277,8 @@ def main():
     # perform structural changes
     change_cpacs_version(new_cpacs_file)
     add_missing_uids(new_cpacs_file)
-    convertEtaXsi(new_cpacs_file)
+    convertEtaXsiIsoLines(new_cpacs_file)
+    convertEtaXsiRelHeightPoints(new_cpacs_file)
     add_changelog(new_cpacs_file)
 
     tigl2 = tiglwrapper.Tigl()
