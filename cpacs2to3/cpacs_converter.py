@@ -12,6 +12,7 @@ Still to be implemented:
 from __future__ import print_function
 
 import argparse
+import re
 
 from tigl import tiglwrapper
 from tigl3 import tigl3wrapper
@@ -135,6 +136,58 @@ def add_missing_uids(tixi3):
     except Tixi3Exception:
         pass
 
+def convertIsoLineCoord(tixi3, xpath, elementName):
+    for path in get_all_paths_matching(tixi3, xpath):
+        # find uid of nearest component segment or trailing edge device
+        end = [it.end() for it in re.finditer('(componentSegment|trailingEdgeDevice)(\[\d+\])?/', path)][-1]
+        csOrTedXPath = path[:end - 1]
+        uid = tixi3.getTextAttribute(csOrTedXPath, 'uID')
+
+        # get existing eta/xsi value
+        value = tixi3.getDoubleElement(path)
+        
+        tixi3.updateTextElement(path, '') # delete content of element
+        
+        # add sub elements for eta/xsi iso line
+        tixi3.addDoubleElement(path, elementName, value, '%g')
+        tixi3.addTextElement(path, 'referenceUID', uid)
+
+
+def convertEtaXsi(tixi3):
+    etaXpath = (
+        '//track/eta|' +
+        '//cutOutProfile/eta|' +
+        '//intermediateAirfoil/eta|' +
+        '//positioningInnerBorder/eta1|' +
+        '//positioningOuterBorder/eta1|' +
+        '//positioningInnerBorder/eta2|' +
+        '//positioningOuterBorder/eta2|' +
+        '//ribsPositioning/etaStart|' +
+        '//ribsPositioning/etaEnd|' +
+        '//ribExplicitPositioning/etaStart|' +
+        '//ribExplicitPositioning/etaEnd|' +
+        '//innerBorder/etaLE|' +
+        '//outerBorder/etaLE|' +
+        '//innerBorder/etaTE|' +
+        '//outerBorder/etaTE|' +
+        '//position/etaOutside|' +
+        '//sparCell/fromEta|' +
+        '//sparCell/toEta'
+    )
+    convertIsoLineCoord(tixi3, etaXpath, 'eta')
+    
+    xsiXpath = (
+        '//stringer/innerBorderXsiLE|' +
+        '//stringer/innerBorderXsiTE|' +
+        '//stringer/outerBorderXsiLE|' +
+        '//stringer/outerBorderXsiTE|' +
+        '//innerBorder/xsiLE|' +
+        '//outerBorder/xsiLE|' +
+        '//innerBorder/xsiTE|' +
+        '//outerBorder/xsiTE|' +
+        '//position/xsiInside|'
+    )
+    convertIsoLineCoord(tixi3, xsiXpath, 'xsi')
 
 def get_parent_child_path(child_path):
     while child_path[-1] == '/':
@@ -178,6 +231,7 @@ def main():
     # perform structural changes
     change_cpacs_version(new_cpacs_file)
     add_missing_uids(new_cpacs_file)
+    convertEtaXsi(new_cpacs_file)
     add_changelog(new_cpacs_file)
 
     tigl2 = tiglwrapper.Tigl()
