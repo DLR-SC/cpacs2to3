@@ -150,13 +150,63 @@ def convertIsoLineCoord(tixi3, xpath, elementName):
         # get existing eta/xsi value
         value = tixi3.getDoubleElement(path)
         
-        tixi3.updateTextElement(path, '') # delete content of element
+        # recreate element to make sure it's empty and properly formatted
+        index = elementIndexInParent(tixi3, path)
+        tixi3.removeElement(path)
+        tixi3.createElementAtIndex(parentPath(path), childElement(path), index)
         
         # add sub elements for eta/xsi iso line
         tixi3.addDoubleElement(path, elementName, value, '%g')
         tixi3.addTextElement(path, 'referenceUID', uid)
 
 
+def childElement(xpath):
+    return xpath[xpath.rfind('/') + 1:]
+
+
+def parentPath(xpath):
+    return xpath[:xpath.rfind('/')]
+
+
+def elementIndexInParent(tixi3, xpath):
+    parentXPath = parentPath(xpath)
+    childName = childElement(xpath)
+    count = tixi3.getNumberOfChilds(parentXPath)
+    for i in range(count):
+        if tixi3.getChildNodeName(parentXPath, i + 1) == childName:
+            return i + 1
+    return count
+
+    
+def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
+    # read and remove elementUid
+    elementUid = tixi3.getTextElement(xpath)
+    index = elementIndexInParent(tixi3, xpath)
+    tixi3.removeElement(xpath)
+    
+    # convert
+    wingSegments = get_all_paths_matching(tixi3, '//wing/segments/segment[./toElementUID[text()=\'' + elementUid + '\']]')
+    if len(wingSegments) > 0:
+        eta = 1.0
+        uid = tixi3.getTextAttribute(wingSegments[0], 'uID')
+    else:
+        wingSegments = get_all_paths_matching(tixi3, '//wing/segments/segment[./fromElementUID[text()=\'' + elementUid + '\']]')
+        if len(wingSegments) > 0:
+            eta = 0.0
+            uid = tixi3.getTextAttribute(wingSegments[0], 'uID')
+        else:
+            print ('Failed to find a wing segment referencing the section element with uid' + elementUid + '. Manual correction is necessary')
+            eta = 0.0
+            uid = 'TODO'
+    
+    # write eta iso line
+    parentXPath = parentPath(xpath)
+    tixi3.createElementAtIndex(parentXPath, elementName, index)
+    newElementXPath = parentXPath + '/' + elementName
+    tixi3.addDoubleElement(newElementXPath, 'eta', eta, '%g')
+    tixi3.addTextElement(newElementXPath, 'referenceUID', uid)
+
+    
 def convertEtaXsiIsoLines(tixi3):
     etaXpath = (
         '//track/eta|' +
@@ -189,15 +239,20 @@ def convertEtaXsiIsoLines(tixi3):
         '//outerBorder/xsiLE|' +
         '//innerBorder/xsiTE|' +
         '//outerBorder/xsiTE|' +
-        '//position/xsiInside|'
+        '//position/xsiInside'
     )
     convertIsoLineCoord(tixi3, xsiXpath, 'xsi')
+    
+    # convert elementUIDs
+    for path in get_all_paths_matching(tixi3, '//ribsPositioning/elementStartUID|'):
+        convertElementUidToEtaAndUid(tixi3, path, 'etaStart')
+    for path in get_all_paths_matching(tixi3, '//ribsPositioning/elementEndUID|'):
+        convertElementUidToEtaAndUid(tixi3, path, 'etaEnd')
 
 def convertEtaXsiRelHeightPoints(tixi3):
     xpath = '//sparPosition'
 
     for path in get_all_paths_matching(tixi3, xpath):
-
         # get existing xsi value
         xsi = tixi3.getDoubleElement(path + '/xsi')
         tixi3.removeElement(path + '/xsi')
@@ -208,33 +263,19 @@ def convertEtaXsiRelHeightPoints(tixi3):
             tixi3.removeElement(path + '/eta')
             
             uid = findNearestCsOrTedUid(tixi3, path)
-
+            
+            # add sub elements for rel height point
+            tixi3.createElement(path, 'sparPoint')
+            path = path + '/sparPoint'
+            tixi3.addDoubleElement(path, 'eta', eta, '%g')
+            tixi3.addDoubleElement(path, 'xsi', xsi, '%g')
+            tixi3.addTextElement(path, 'referenceUID', uid)
         else:
             # in case of elementUID, find wing segment which references the element and convert to eta
-            elementUid = tixi3.getTextElement(path + '/elementUID')
-            tixi3.removeElement(path + '/elementUID')
-            
-            wingSegments = get_all_paths_matching(tixi3, '//wing/segments/segment[./toElementUID[text()=\'' + elementUid + '\']]')
-            if len(wingSegments) > 0:
-                eta = 1.0
-                uid = tixi3.getTextAttribute(wingSegments[0], 'uID')
-            else:
-                wingSegments = get_all_paths_matching(tixi3, '//wing/segments/segment[./fromElementUID[text()=\'' + elementUid + '\']]')
-                if len(wingSegments) > 0:
-                    eta = 0.0
-                    uid = tixi3.getTextAttribute(wingSegments[0], 'uID')
-                else:
-                    print ('Failed to find a wing segment referencing the section element with uid' + elementUid + '. Manual correction is necessary')
-                    eta = 0.0
-                    uid = 'TODO'
+            convertElementUidToEtaAndUid(tixi3, path + '/elementUID', 'sparPoint')
+            tixi3.addDoubleElement(path + '/sparPoint', 'xsi', xsi, '%g')
 
-        # add sub elements for rel height point
-        tixi3.createElement(path, 'sparPoint')
-        path = path + '/sparPoint'
-        tixi3.addDoubleElement(path, 'eta', eta, '%g')
-        tixi3.addDoubleElement(path, 'xsi', xsi, '%g')
-        tixi3.addTextElement(path, 'referenceUID', uid)
-    
+
 def get_parent_child_path(child_path):
     while child_path[-1] == '/':
         child_path = child_path[0:-1]
