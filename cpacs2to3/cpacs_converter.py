@@ -251,6 +251,38 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
     tixi3.addDoubleElement(newElementXPath, 'eta', eta, '%g')
     tixi3.addTextElement(newElementXPath, 'referenceUID', uid)
 
+etaXpath = (
+    '//track/eta|' +
+    '//cutOutProfile/eta|' +
+    '//intermediateAirfoil/eta|' +
+    '//positioningInnerBorder/eta1|' +
+    '//positioningOuterBorder/eta1|' +
+    '//positioningInnerBorder/eta2|' +
+    '//positioningOuterBorder/eta2|' +
+    '//ribsPositioning/etaStart|' +
+    '//ribsPositioning/etaEnd|' +
+    '//ribExplicitPositioning/etaStart|' +
+    '//ribExplicitPositioning/etaEnd|' +
+    '//innerBorder/etaLE|' +
+    '//outerBorder/etaLE|' +
+    '//innerBorder/etaTE|' +
+    '//outerBorder/etaTE|' +
+    '//position/etaOutside|' +
+    '//sparCell/fromEta|' +
+    '//sparCell/toEta'
+)
+
+xsiXpath = (
+    '//stringer/innerBorderXsiLE|' +
+    '//stringer/innerBorderXsiTE|' +
+    '//stringer/outerBorderXsiLE|' +
+    '//stringer/outerBorderXsiTE|' +
+    '//innerBorder/xsiLE|' +
+    '//outerBorder/xsiLE|' +
+    '//innerBorder/xsiTE|' +
+    '//outerBorder/xsiTE|' +
+    '//position/xsiInside'
+)
     
 def convertEtaXsiIsoLines(tixi3):
     """
@@ -280,39 +312,7 @@ def convertEtaXsiIsoLines(tixi3):
             tixi3.addDoubleElement(path, elementName, value, '%g')
             tixi3.addTextElement(path, 'referenceUID', uid)
 
-    etaXpath = (
-        '//track/eta|' +
-        '//cutOutProfile/eta|' +
-        '//intermediateAirfoil/eta|' +
-        '//positioningInnerBorder/eta1|' +
-        '//positioningOuterBorder/eta1|' +
-        '//positioningInnerBorder/eta2|' +
-        '//positioningOuterBorder/eta2|' +
-        '//ribsPositioning/etaStart|' +
-        '//ribsPositioning/etaEnd|' +
-        '//ribExplicitPositioning/etaStart|' +
-        '//ribExplicitPositioning/etaEnd|' +
-        '//innerBorder/etaLE|' +
-        '//outerBorder/etaLE|' +
-        '//innerBorder/etaTE|' +
-        '//outerBorder/etaTE|' +
-        '//position/etaOutside|' +
-        '//sparCell/fromEta|' +
-        '//sparCell/toEta'
-    )
     convertIsoLineCoords(tixi3, etaXpath, 'eta')
-    
-    xsiXpath = (
-        '//stringer/innerBorderXsiLE|' +
-        '//stringer/innerBorderXsiTE|' +
-        '//stringer/outerBorderXsiLE|' +
-        '//stringer/outerBorderXsiTE|' +
-        '//innerBorder/xsiLE|' +
-        '//outerBorder/xsiLE|' +
-        '//innerBorder/xsiTE|' +
-        '//outerBorder/xsiTE|' +
-        '//position/xsiInside'
-    )
     convertIsoLineCoords(tixi3, xsiXpath, 'xsi')
     
     # convert elementUIDs
@@ -396,6 +396,61 @@ def get_new_cs_coordinates(tigl2, tigl3, compseg_uid, eta_old, xsi_old):
     px, py, pz = tigl2.wingComponentSegmentGetPoint(compseg_uid, eta_old, xsi_old)
     return tigl3.wingComponentSegmentPointGetEtaXsi(compseg_uid, px, py, pz)
 
+def convertCSEtaCoord(tigl2, tigl3, compseg_uid, eta_old):
+    return get_new_cs_coordinates(tigl2, tigl3, compseg_uid, eta_old, 0.0)[0]
+    
+def convertCSXsiCoord(tigl2, tigl3, compseg_uid, xsi_old):
+    return get_new_cs_coordinates(tigl2, tigl3, compseg_uid, 0.0, xsi_old)[1]
+    
+def convertEtaXsiValues(tixi3, tigl2, tigl3):
+    """
+    Converts all eta and xsi coordinates from the old component segment eta/xsi space to the new one
+    :param tixi3: TiXI 3 handle
+    :param tigl2: TiGL 2 handle
+    :param tigl3: TiGL 3 handle
+    """
+    
+    csUids          = [tixi3.getTextAttribute(xpath, 'uID') for xpath in get_all_paths_matching(tixi3, '//componentSegment')]
+    wingSegmentUids = [tixi3.getTextAttribute(xpath, 'uID') for xpath in get_all_paths_matching(tixi3, '//wing/segments/segment')]
+    tedUids         = [tixi3.getTextAttribute(xpath, 'uID') for xpath in get_all_paths_matching(tixi3, '//trailingEdgeDevice')]
+
+    # read all eta definitions
+    for xpath in get_all_paths_matching(tixi3, etaXpath):
+        eta = tixi3.getDoubleElement(xpath + '/eta')
+        uid = tixi3.getTextElement(xpath + '/referenceUID')
+
+        if uid in csUids:
+            newEta = convertCSEtaCoord(tigl2, tigl3, uid, eta)
+            tixi3.updateDoubleElement(xpath + '/eta', newEta, '%g')
+        elif uid in wingSegmentUids:
+            # TODO call CCPACSWingComponentSegment::GetEtaXsiFromSegmentEtaXsi(uid, eta, 0.0, newEta, ...) here
+            print('iso line conversions with segment references are not implemented')
+        elif uid in tedUids:
+            # TODO has this even changed?
+            print('iso line conversions with ted references are not implemented')
+        else:
+            print('ERROR: uid ' + uid + ' could not be resolved to a component segment, wing segment or trailing edge device')
+            
+    # read all xsi definitions
+    for xpath in get_all_paths_matching(tixi3, xsiXpath):
+        xsi = tixi3.getDoubleElement(xpath + '/xsi')
+        uid = tixi3.getTextElement(xpath + '/referenceUID')
+
+        if uid in csUids:
+            newXsi = convertCSXsiCoord(tigl2, tigl3, uid, xsi)
+            tixi3.updateDoubleElement(xpath + '/xsi', newXsi, '%g')
+        elif uid in wingSegmentUids:
+            # TODO call CCPACSWingComponentSegment::GetEtaXsiFromSegmentEtaXsi(uid, 0.0, xsi, ..., newXsi) here
+            print('iso line conversions with segment references are not implemented')
+        elif uid in tedUids:
+            # TODO has this even changed?
+            print('iso line conversions with ted references are not implemented')
+        else:
+            print('ERROR: uid ' + uid + ' could not be resolved to a component segment, wing segment or trailing edge device')
+            
+    # reopen as we changed the TiXI document underneath
+    # otherwise the changes to the TiXI document will be overwritten when TiGL saves the document
+    tigl3.open(tixi3, '')
 
 def main():
     parser = argparse.ArgumentParser(description='Converts a CPACS file from Version 2 to Version 3.')
@@ -416,19 +471,23 @@ def main():
 
     register_uids(new_cpacs_file)
 
-    # perform structural changes
+    # perform structural changes on XML
     change_cpacs_version(new_cpacs_file)
     add_missing_uids(new_cpacs_file)
     convertEtaXsiIsoLines(new_cpacs_file)
     convertEtaXsiRelHeightPoints(new_cpacs_file)
     add_changelog(new_cpacs_file)
 
+    # load old and new XML into TiGL
     tigl2 = tiglwrapper.Tigl()
     tigl2.open(old_cpacs_file, "")
 
     tigl3 = tigl3wrapper.Tigl3()
     tigl3.open(new_cpacs_file, "")
 
+    # perform non-structural conversions
+    convertEtaXsiValues(new_cpacs_file, tigl2, tigl3)
+    
     print ("Done")
     old_cpacs_file.save(filename)
 
