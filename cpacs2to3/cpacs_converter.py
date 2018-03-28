@@ -137,38 +137,39 @@ def add_missing_uids(tixi3):
         pass
 
 def findNearestCsOrTedUid(tixi3, xpath):
-    # find uid of nearest component segment or trailing edge device
+    """
+    Finds the uid of the nearest parent which is a component segment or trailing edge device
+    :param tixi3: TiXI 3 handle
+    :param xpath: XPath of the element to start the search
+    """
     end = [it.end() for it in re.finditer('(componentSegment|trailingEdgeDevice)(\[\d+\])?/', xpath)][-1]
     csOrTedXPath = xpath[:end - 1]
     uid = tixi3.getTextAttribute(csOrTedXPath, 'uID')
     return uid
-        
-def convertIsoLineCoord(tixi3, xpath, elementName):
-    for path in get_all_paths_matching(tixi3, xpath):
-        uid = findNearestCsOrTedUid(tixi3, path)
-
-        # get existing eta/xsi value
-        value = tixi3.getDoubleElement(path)
-        
-        # recreate element to make sure it's empty and properly formatted
-        index = elementIndexInParent(tixi3, path)
-        tixi3.removeElement(path)
-        tixi3.createElementAtIndex(parentPath(path), childElement(path), index)
-        
-        # add sub elements for eta/xsi iso line
-        tixi3.addDoubleElement(path, elementName, value, '%g')
-        tixi3.addTextElement(path, 'referenceUID', uid)
 
 
 def childElement(xpath):
+    """
+    Gives the last element in an xpath
+    :param xpath: An xpath with at least one '/'
+    """
     return xpath[xpath.rfind('/') + 1:]
 
 
 def parentPath(xpath):
+    """
+    Removes the last element in an xpath, effectively yielding the xpath to the parent element
+    :param xpath: An xpath with at least one '/'
+    """
     return xpath[:xpath.rfind('/')]
 
 
 def elementIndexInParent(tixi3, xpath):
+    """
+    Finds the index of the child element in the given xpath in its parent element
+    :param tixi3: TiXI 3 handle
+    :param xpath: An xpath with at least one '/'
+    """
     parentXPath = parentPath(xpath)
     childName = childElement(xpath)
     count = tixi3.getNumberOfChilds(parentXPath)
@@ -179,6 +180,14 @@ def elementIndexInParent(tixi3, xpath):
 
     
 def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
+    """
+    Converts an elementUID element to an eta/xsi value and a referenceUID to a wing segment referencing the wing section element from elementUID.
+    Removes the elementUID element and adds eta and referenceUID elements with new values
+    :param tixi3: TiXI 3 handle
+    :param xpath: The xpath of the elementUID element
+    :param elementName: Name of the element created at xpath which contains the computed eta and referenceUID elements
+    """
+
     # read and remove elementUid
     elementUid = tixi3.getTextElement(xpath)
     index = elementIndexInParent(tixi3, xpath)
@@ -208,6 +217,33 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
 
     
 def convertEtaXsiIsoLines(tixi3):
+    """
+    Convertes eta/xsi and elementUID values to eta/xsi iso lines
+    :param tixi3: TiXI 3 handle
+    """
+
+    def convertIsoLineCoords(tixi3, xpath, elementName):
+        """
+        Convertes a multitude of either eta or xsi values to eta or xsi iso lines
+        :param tixi3: TiXI 3 handle
+        :param xpath: XPath matching multiple eta or xsi double values
+        :param elementName: Name of the new element storing the eta/xsi value in the created iso line. Is either 'eta' or 'xsi'
+        """
+        for path in get_all_paths_matching(tixi3, xpath):
+            uid = findNearestCsOrTedUid(tixi3, path)
+
+            # get existing eta/xsi value
+            value = tixi3.getDoubleElement(path)
+            
+            # recreate element to make sure it's empty and properly formatted
+            index = elementIndexInParent(tixi3, path)
+            tixi3.removeElement(path)
+            tixi3.createElementAtIndex(parentPath(path), childElement(path), index)
+            
+            # add sub elements for eta/xsi iso line
+            tixi3.addDoubleElement(path, elementName, value, '%g')
+            tixi3.addTextElement(path, 'referenceUID', uid)
+
     etaXpath = (
         '//track/eta|' +
         '//cutOutProfile/eta|' +
@@ -228,7 +264,7 @@ def convertEtaXsiIsoLines(tixi3):
         '//sparCell/fromEta|' +
         '//sparCell/toEta'
     )
-    convertIsoLineCoord(tixi3, etaXpath, 'eta')
+    convertIsoLineCoords(tixi3, etaXpath, 'eta')
     
     xsiXpath = (
         '//stringer/innerBorderXsiLE|' +
@@ -241,7 +277,7 @@ def convertEtaXsiIsoLines(tixi3):
         '//outerBorder/xsiTE|' +
         '//position/xsiInside'
     )
-    convertIsoLineCoord(tixi3, xsiXpath, 'xsi')
+    convertIsoLineCoords(tixi3, xsiXpath, 'xsi')
     
     # convert elementUIDs
     for path in get_all_paths_matching(tixi3, '//ribsPositioning/elementStartUID|'):
@@ -250,6 +286,11 @@ def convertEtaXsiIsoLines(tixi3):
         convertElementUidToEtaAndUid(tixi3, path, 'etaEnd')
 
 def convertEtaXsiRelHeightPoints(tixi3):
+    """
+    Converts all spar positions to etaXsiRelHeightPoints containing eta, xsi and referenceUID
+    :param tixi3: TiXI 3 handle
+    """
+
     xpath = '//sparPosition'
 
     for path in get_all_paths_matching(tixi3, xpath):
