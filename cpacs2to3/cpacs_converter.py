@@ -423,11 +423,11 @@ def convertEtaXsiValues(tixi3, tigl2, tigl3):
             newEta = convertCSEtaCoord(tigl2, tigl3, uid, eta)
             tixi3.updateDoubleElement(xpath + '/eta', newEta, '%g')
         elif uid in wingSegmentUids:
-            # TODO call CCPACSWingComponentSegment::GetEtaXsiFromSegmentEtaXsi(uid, eta, 0.0, newEta, ...) here
-            print('iso line conversions with segment references are not implemented')
+            # eta and xsi values in wing segments (which originated from wing sections) stay the same
+            pass
         elif uid in tedUids:
             # TODO has this even changed?
-            print('iso line conversions with ted references are not implemented')
+            pass
         else:
             print('ERROR: uid ' + uid + ' could not be resolved to a component segment, wing segment or trailing edge device')
             
@@ -440,11 +440,11 @@ def convertEtaXsiValues(tixi3, tigl2, tigl3):
             newXsi = convertCSXsiCoord(tigl2, tigl3, uid, xsi)
             tixi3.updateDoubleElement(xpath + '/xsi', newXsi, '%g')
         elif uid in wingSegmentUids:
-            # TODO call CCPACSWingComponentSegment::GetEtaXsiFromSegmentEtaXsi(uid, 0.0, xsi, ..., newXsi) here
-            print('iso line conversions with segment references are not implemented')
+            # eta and xsi values in wing segments (which originated from wing sections) stay the same
+            pass
         elif uid in tedUids:
             # TODO has this even changed?
-            print('iso line conversions with ted references are not implemented')
+            pass
         else:
             print('ERROR: uid ' + uid + ' could not be resolved to a component segment, wing segment or trailing edge device')
             
