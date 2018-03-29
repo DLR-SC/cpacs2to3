@@ -127,8 +127,34 @@ def add_missing_uids(tixi3):
         add_uid(tixi3, path + "/scaling", uidGenerator.create(tixi3, path + "/scaling"))
         add_uid(tixi3, path + "/translation", uidGenerator.create(tixi3, path + "/translation"))
 
+    def genMassPaths(path):
+        return (
+            '//' + path + '|' +
+            '//' + path + '/location|' +
+            '//' + path + '/orientation'
+        )
+
     # add uids to positinings, lowerShells, upperShells, rotorBladeAttachments
-    xpath = '//positioning|//lowerShell|//upperShell|//rotorBladeAttachment|//ribRotation'
+    xpath = (
+        '//positioning|' +
+        '//lowerShell|' +
+        '//upperShell|' +
+        '//rotorBladeAttachment|' +
+        '//ribRotation|' +
+        '//reference/point|' +
+        '//trailingEdgeDevice/path/steps/step/innerHingeTranslation|' +
+        '//trailingEdgeDevice/path/steps/step/outerHingeTranslation|' +
+        '//trailingEdgeDevice/tracks/track|' +
+        '//globalBeamProperties/beamCrossSection|' +
+        '//globalBeamProperties/beamCOG|' +
+        '//globalBeamProperties/beamShearCenter|' +
+        '//globalBeamProperties/beamStiffness|' +
+        genMassPaths('mTOM') + '|' +
+        genMassPaths('mZFM') + '|' +
+        genMassPaths('mMLM') + '|' +
+        genMassPaths('mMRM') + '|' +
+        genMassPaths('massDescription')
+    )
     try:
         paths = get_all_paths_matching(tixi3, xpath)
         for path in paths:
