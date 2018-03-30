@@ -142,6 +142,11 @@ def add_missing_uids(tixi3):
         '//rotorBladeAttachment|' +
         '//ribRotation|' +
         '//reference/point|' +
+        '//material/orthotropyDirection|' +
+        '//stringerPosition|' +
+        '//stringerPosition/alignment|' +
+        '//framePosition|' +
+        '//framePosition/alignment|' +
         '//trailingEdgeDevice/path/steps/step/innerHingeTranslation|' +
         '//trailingEdgeDevice/path/steps/step/outerHingeTranslation|' +
         '//trailingEdgeDevice/tracks/track|' +
