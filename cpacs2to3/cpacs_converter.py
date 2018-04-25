@@ -33,8 +33,13 @@ class UIDGenerator(object):
         parent, elem = get_parent_child_path(current_path)
         while not tixi_handle.checkAttribute(parent, "uID"):
             parent, _ = get_parent_child_path(parent)
+            if parent == '':
+                break;
 
-        parent_uid = tixi_handle.getTextAttribute(parent, "uID")
+        if parent != '':
+            parent_uid = tixi_handle.getTextAttribute(parent, "uID")
+        else:
+            parent_uid = ''
 
         counter = 1
         new_uid = "%s_%s%d" % (parent_uid, elem, counter)
