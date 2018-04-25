@@ -322,15 +322,14 @@ def convertEtaXsiRelHeightPoints(tixi3):
     :param tixi3: TiXI 3 handle
     """
 
-    xpath = '//sparPosition'
-
-    for path in get_all_paths_matching(tixi3, xpath):
+    # convert sparPosition
+    for path in get_all_paths_matching(tixi3, '//sparPosition'):
         # get existing xsi value
         xsi = tixi3.getDoubleElement(path + '/xsi')
         tixi3.removeElement(path + '/xsi')
         
         if tixi3.checkElement(path + '/eta'):
-            # if we have an eta, get it and find cs or ted uid
+            # if we have an eta, get it
             eta = tixi3.getDoubleElement(path + '/eta')
             tixi3.removeElement(path + '/eta')
             
@@ -347,6 +346,31 @@ def convertEtaXsiRelHeightPoints(tixi3):
             convertElementUidToEtaAndUid(tixi3, path + '/elementUID', 'sparPoint')
             tixi3.addDoubleElement(path + '/sparPoint', 'xsi', xsi, '%g')
 
+    # convert non-explicit stringer
+    for path in get_all_paths_matching(tixi3, '//lowerShell/stringer|//upperShell/stringer|//cell/stringer'):
+        if not tixi3.checkElement(path + '/pitch'):
+            continue
+    
+        # get existing xsi value, if it exists
+        xsi = 0.0
+        if tixi3.checkElement(path + '/xsi'):
+            xsi = tixi3.getDoubleElement(path + '/xsi')
+            tixi3.removeElement(path + '/xsi')
+
+        # get existing eta value, if it exists
+        eta = 0.0
+        if tixi3.checkElement(path + '/eta'):
+            eta = tixi3.getDoubleElement(path + '/eta')
+            tixi3.removeElement(path + '/eta')
+
+        uid = findNearestCsOrTedUid(tixi3, path)
+
+        # add sub elements for rel height point
+        tixi3.createElement(path, 'refPoint')
+        path = path + '/refPoint'
+        tixi3.addDoubleElement(path, 'eta', eta, '%g')
+        tixi3.addDoubleElement(path, 'xsi', xsi, '%g')
+        tixi3.addTextElement(path, 'referenceUID', uid)
 
 def get_parent_child_path(child_path):
     while child_path[-1] == '/':
