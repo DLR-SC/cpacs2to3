@@ -447,6 +447,25 @@ def convertEtaXsiValues(tixi3, tigl2, tigl3):
             pass
         else:
             print('ERROR: uid ' + uid + ' could not be resolved to a component segment, wing segment or trailing edge device')
+
+    # read all etaXsiRelHeightPoints
+    for xpath in get_all_paths_matching(tixi3, '//sparPosition/sparPoint|//stringer/refPoint'):
+        xsi = tixi3.getDoubleElement(xpath + '/xsi')
+        eta = tixi3.getDoubleElement(xpath + '/eta')
+        uid = tixi3.getTextElement(xpath + '/referenceUID')
+
+        if uid in csUids:
+            newEtaXsi = get_new_cs_coordinates(tigl2, tigl3, uid, eta, xsi)
+            tixi3.updateDoubleElement(xpath + '/eta', newEtaXsi[0], '%g')
+            tixi3.updateDoubleElement(xpath + '/xsi', newEtaXsi[1], '%g')
+        elif uid in wingSegmentUids:
+            # eta and xsi values in wing segments (which originated from wing sections) stay the same
+            pass
+        elif uid in tedUids:
+            # TODO has this even changed?
+            pass
+        else:
+            print('ERROR: uid ' + uid + ' could not be resolved to a component segment, wing segment or trailing edge device')
             
     # reopen as we changed the TiXI document underneath
     # otherwise the changes to the TiXI document will be overwritten when TiGL saves the document
