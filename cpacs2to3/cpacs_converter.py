@@ -396,12 +396,6 @@ def get_new_cs_coordinates(tigl2, tigl3, compseg_uid, eta_old, xsi_old):
     px, py, pz = tigl2.wingComponentSegmentGetPoint(compseg_uid, eta_old, xsi_old)
     return tigl3.wingComponentSegmentPointGetEtaXsi(compseg_uid, px, py, pz)
 
-def convertCSEtaCoord(tigl2, tigl3, compseg_uid, eta_old):
-    return get_new_cs_coordinates(tigl2, tigl3, compseg_uid, eta_old, 0.0)[0]
-    
-def convertCSXsiCoord(tigl2, tigl3, compseg_uid, xsi_old):
-    return get_new_cs_coordinates(tigl2, tigl3, compseg_uid, 0.0, xsi_old)[1]
-    
 def convertEtaXsiValues(tixi3, tigl2, tigl3):
     """
     Converts all eta and xsi coordinates from the old component segment eta/xsi space to the new one
@@ -419,8 +413,12 @@ def convertEtaXsiValues(tixi3, tigl2, tigl3):
         eta = tixi3.getDoubleElement(xpath + '/eta')
         uid = tixi3.getTextElement(xpath + '/referenceUID')
 
+        # TODO: determine xsi for all possible elements in etaXpath
+        # e.g. ribsPositioning/ribReference: leadingEdge = 0, trailingEdge = 1
+        xsi = 0
+        
         if uid in csUids:
-            newEta = convertCSEtaCoord(tigl2, tigl3, uid, eta)
+            newEta = get_new_cs_coordinates(tigl2, tigl3, uid, eta, xsi)[0]
             tixi3.updateDoubleElement(xpath + '/eta', newEta, '%g')
         elif uid in wingSegmentUids:
             # eta and xsi values in wing segments (which originated from wing sections) stay the same
@@ -436,8 +434,12 @@ def convertEtaXsiValues(tixi3, tigl2, tigl3):
         xsi = tixi3.getDoubleElement(xpath + '/xsi')
         uid = tixi3.getTextElement(xpath + '/referenceUID')
 
+        # TODO: determine eta for all possible elements in etaXpath
+        # e.g. for wing cells we have to resolve inner and outer border, and if they point to ribs, we have to compute eta values for the ribs ... 
+        eta = 0
+        
         if uid in csUids:
-            newXsi = convertCSXsiCoord(tigl2, tigl3, uid, xsi)
+            newXsi = get_new_cs_coordinates(tigl2, tigl3, uid, eta, xsi)[1]
             tixi3.updateDoubleElement(xpath + '/xsi', newXsi, '%g')
         elif uid in wingSegmentUids:
             # eta and xsi values in wing segments (which originated from wing sections) stay the same
