@@ -13,13 +13,21 @@ from __future__ import print_function
 
 import argparse
 import re
+import math
 
-from tigl import tiglwrapper
-from tigl3 import tigl3wrapper
+# from tigl import tiglwrapper
+# from tigl3 import tigl3wrapper
+#
+# from tixi3 import tixi3wrapper
+# from tixi3.tixi3wrapper import Tixi3Exception
+# from tixi import tixiwrapper
 
-from tixi3 import tixi3wrapper
-from tixi3.tixi3wrapper import Tixi3Exception
-from tixi import tixiwrapper
+import tigl as tiglwrapper
+import tigl3 as tigl3wrapper
+
+import tixi3 as tixi3wrapper
+from tixi3 import Tixi3Exception
+import tixi as tixiwrapper
 
 from datetime import datetime
 
@@ -246,6 +254,100 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
     tixi3.addDoubleElement(newElementXPath, 'eta', eta, '%g')
     tixi3.addTextElement(newElementXPath, 'referenceUID', uid)
 
+def findGuideCurveUsingProfile(tixi2, profileUid):
+
+    # check all guide curves of all fuselages and wings
+    for type in ['fuselage', 'wing']:
+        xpath = 'cpacs/vehicles/aircraft/model/{}s'.format(type)
+        n = tixi2.getNumberOfChilds(xpath)
+        for idx in range(0, n):
+            xpathSegments = xpath + '/{}[{}]/segments'.format(type, idx + 1)
+            nSegments = tixi2.getNumberOfChilds(xpathSegments)
+            for segmentIdx in range(0, nSegments):
+                xpathGuideCurves = xpathSegments + '/segment[{}]/guideCurves'.format(segmentIdx + 1)
+                nCurves = tixi2.getNumberOfChilds(xpathGuideCurves)
+                for curveIdx in range(0, nCurves):
+                    xpathGuideCurve = xpathGuideCurves + '/guideCurve[{}]'.format(curveIdx + 1)
+                    currentProfileUid = tixi2.getTextElement(xpathGuideCurve + '/guideCurveProfileUID')
+
+                    if profileUid == currentProfileUid:
+                        return tixi2.getTextAttribute(xpathGuideCurve, 'uID')
+
+    print("   Could not find a guide curve referencing the profile with uid {}".format(profileUid))
+    return None
+
+def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid):
+
+    guideCurveXPath = tixi2.uIDGetXPath(guideCurveUid)
+
+    # get start segment and end segment to determine the scale
+    segmentXPath = parentPath(parentPath(guideCurveXPath))
+
+    fromElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/fromElementUID'))
+    startSectionXPath = parentPath(parentPath(fromElementXPath))
+    a = startSectionXPath.rfind('[') + 1
+    b = startSectionXPath.rfind(']')
+    startSectionIdx = int(startSectionXPath[a:b])
+
+    toElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/toElementUID'))
+    endSectionXPath = parentPath(parentPath(toElementXPath))
+    a = endSectionXPath.rfind('[') + 1
+    b = endSectionXPath.rfind(']')
+    endSectionIdx = int(endSectionXPath[a:b])
+
+    print("startSectionIdx = {}".format(startSectionIdx))
+    print("endSectionIdx = {}".format(endSectionIdx))
+
+    # check if the guideCurve is on a wing or a fuselage
+    if 'wing' in guideCurveXPath:
+        print('   it\'s a wing!')
+        # TODO
+    else:
+        startScale = tigl2.fuselageGetCircumference(1, startSectionIdx, 0) / math.pi
+        endScale = tigl2.fuselageGetCircumference(1, endSectionIdx - 1, 1) / math.pi
+
+    # x, y, z = tigl2.getGuideCurvePoints(guideCurveUid)
+
+    rX = (0., 0., 0.)
+    rY = (0., 0., 0.)
+    rZ = (0., 0., 0.)
+    return rX, rY, rZ
+
+def convertGuideCurvePoints(tixi3, tixi2, tigl2, keepUnusedProfiles = True):
+
+    print("Adapting guide curve profiles to CPACS 3 definition")
+
+    # go through all guide curve profiles
+    xpath = 'cpacs/vehicles/profiles/guideCurveProfiles'
+
+    nProfiles = tixi3.getNumberOfChilds(xpath)
+    idx = 0
+    while idx < nProfiles:
+        idx+=1
+        xpathProfile = xpath + '/guideCurveProfile[{}]'.format(idx)
+        profileUid = tixi3.getTextAttribute(xpathProfile, 'uID')
+
+        guideCurveUid = findGuideCurveUsingProfile(tixi3, profileUid)
+
+        if guideCurveUid is None:
+            # The guide curve profile appears to be unused
+            if not keepUnusedProfiles:
+                # If we don't need it, let's do some clean up
+                print("   Removing unused guide curve profile {}".format(profileUid))
+                tixi3.removeElement( xpathProfile )
+                idx-=1
+                nProfiles-=1
+        else:
+            rX, rY, rZ = reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid)
+
+            tixi3.removeElement(xpathProfile + "/pointList")
+            tixi3.createElement(xpathProfile, 'pointList')
+
+            tixi3.addFloatVector(xpathProfile + "/pointList", 'rX', rX, len(rX), '%g')
+            tixi3.addFloatVector(xpathProfile + "/pointList", 'rY', rY, len(rY), '%g')
+            tixi3.addFloatVector(xpathProfile + "/pointList", 'rZ', rZ, len(rZ), '%g')
+
+
     
 def convertEtaXsiIsoLines(tixi3):
     """
@@ -399,6 +501,8 @@ def main():
 
     tigl3 = tigl3wrapper.Tigl3()
     tigl3.open(new_cpacs_file, "")
+
+    convertGuideCurvePoints(new_cpacs_file, old_cpacs_file, tigl2, False)
 
     print ("Done")
     old_cpacs_file.save(filename)
