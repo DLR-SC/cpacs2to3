@@ -14,6 +14,7 @@ from __future__ import print_function
 import argparse
 import re
 import math
+import numpy as np
 
 # from tigl import tiglwrapper
 # from tigl3 import tigl3wrapper
@@ -276,7 +277,7 @@ def findGuideCurveUsingProfile(tixi2, profileUid):
     print("   Could not find a guide curve referencing the profile with uid {}".format(profileUid))
     return None
 
-def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid):
+def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid, nProfilePoints):
 
     guideCurveXPath = tixi2.uIDGetXPath(guideCurveUid)
 
@@ -295,25 +296,65 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid):
     b = endSectionXPath.rfind(']')
     endSectionIdx = int(endSectionXPath[a:b])
 
-    print("startSectionIdx = {}".format(startSectionIdx))
-    print("endSectionIdx = {}".format(endSectionIdx))
+    rX = np.zeros([nProfilePoints+2,1])
+    rY = np.zeros([nProfilePoints+2,1])
+    rZ = np.zeros([nProfilePoints+2,1])
 
     # check if the guideCurve is on a wing or a fuselage
     if 'wing' in guideCurveXPath:
-        print('   it\'s a wing!')
-        # TODO
+        print('   It\'s a wing! The start and end scales are not calculated correctly yet')
+        # TODO startScale, endScale is innerChordlineLength and outerChordLineLength
+        startScale = 1.
+        endScale = 1.
+
+        # CAUTION There is no user-defined x-axis in CPACS2 guide curves. We have to make a reasonable guess
+        x = [1., 0., 0.]
     else:
         startScale = tigl2.fuselageGetCircumference(1, startSectionIdx, 0) / math.pi
         endScale = tigl2.fuselageGetCircumference(1, endSectionIdx - 1, 1) / math.pi
+        # CAUTION There is no user-defined x-axis in CPACS2 guide curves. We have to make a reasonable guess
+        x = [0., 0., 1.]
 
-    # x, y, z = tigl2.getGuideCurvePoints(guideCurveUid)
+    px, py, pz = tigl2.getGuideCurvePoints(guideCurveUid, nProfilePoints+2)
 
-    rX = (0., 0., 0.)
-    rY = (0., 0., 0.)
-    rZ = (0., 0., 0.)
+    guideCurvePnts = np.zeros((3, nProfilePoints+2))
+    guideCurvePnts[0, :] = px
+    guideCurvePnts[1, :] = py
+    guideCurvePnts[2, :] = pz
+
+    start = guideCurvePnts[:, 0]
+    end   = guideCurvePnts[:,-1]
+
+    z = np.cross(x, end - start)
+
+    znorm = np.linalg.norm(z)
+    if abs(znorm) < 1e-10:
+        print("Error during guide curve profile point calculation: The last point and the first point seem to coincide!")
+        return
+
+    z = z / znorm
+
+    for i in range(0, np.size(guideCurvePnts, 1)):
+         current = guideCurvePnts[:,i]
+
+         # orthogonal projection
+         ny2 = np.dot(end - start, end - start)
+         rY[i] = np.dot(current - start, end - start)/ny2
+
+         scale = (1 - rY[i]) * startScale + rY[i] * endScale
+         midPoint = (1 - rY[i]) * start + rY[i] * end
+
+         rX[i] = np.dot(current - midPoint, x) / scale
+         rZ[i] = np.dot(current - midPoint, z) / scale
+
+    # post-processing. Remove first and last point
+    rX = rX[1:-1]
+    rY = rY[1:-1]
+    rZ = rZ[1:-1]
+
     return rX, rY, rZ
 
-def convertGuideCurvePoints(tixi3, tixi2, tigl2, keepUnusedProfiles = True):
+def convertGuideCurvePoints(tixi3, tixi2, tigl2, keepUnusedProfiles = False):
 
     print("Adapting guide curve profiles to CPACS 3 definition")
 
@@ -338,7 +379,8 @@ def convertGuideCurvePoints(tixi3, tixi2, tigl2, keepUnusedProfiles = True):
                 idx-=1
                 nProfiles-=1
         else:
-            rX, rY, rZ = reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid)
+            nProfilePoints = tixi3.getVectorSize(xpathProfile + "/pointList/x")
+            rX, rY, rZ = reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid, nProfilePoints)
 
             tixi3.removeElement(xpathProfile + "/pointList")
             tixi3.createElement(xpathProfile, 'pointList')
@@ -502,7 +544,7 @@ def main():
     tigl3 = tigl3wrapper.Tigl3()
     tigl3.open(new_cpacs_file, "")
 
-    convertGuideCurvePoints(new_cpacs_file, old_cpacs_file, tigl2, False)
+    convertGuideCurvePoints(new_cpacs_file, old_cpacs_file, tigl2)
 
     print ("Done")
     old_cpacs_file.save(filename)
