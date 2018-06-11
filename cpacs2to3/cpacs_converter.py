@@ -16,19 +16,12 @@ import re
 import math
 import numpy as np
 
-# from tigl import tiglwrapper
-# from tigl3 import tigl3wrapper
-#
-# from tixi3 import tixi3wrapper
-# from tixi3.tixi3wrapper import Tixi3Exception
-# from tixi import tixiwrapper
+from tigl import tiglwrapper
+from tigl3 import tigl3wrapper
 
-import tigl as tiglwrapper
-import tigl3 as tigl3wrapper
-
-import tixi3 as tixi3wrapper
-from tixi3 import Tixi3Exception
-import tixi as tixiwrapper
+from tixi3 import tixi3wrapper
+from tixi3.tixi3wrapper import Tixi3Exception
+from tixi import tixiwrapper
 
 from datetime import datetime
 
@@ -255,6 +248,10 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
     tixi3.addDoubleElement(newElementXPath, 'eta', eta, '%g')
     tixi3.addTextElement(newElementXPath, 'referenceUID', uid)
 
+def getChordLength(tigl3, sectionUid):
+    #TODO
+    return 1.
+
 def findGuideCurveUsingProfile(tixi2, profileUid):
 
     # check all guide curves of all fuselages and wings
@@ -277,7 +274,7 @@ def findGuideCurveUsingProfile(tixi2, profileUid):
     print("   Could not find a guide curve referencing the profile with uid {}".format(profileUid))
     return None
 
-def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid, nProfilePoints):
+def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, nProfilePoints):
 
     guideCurveXPath = tixi2.uIDGetXPath(guideCurveUid)
 
@@ -304,8 +301,8 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid, nProfile
     if 'wing' in guideCurveXPath:
         print('   It\'s a wing! The start and end scales are not calculated correctly yet')
         # TODO startScale, endScale is innerChordlineLength and outerChordLineLength
-        startScale = 1.
-        endScale = 1.
+        startScale = getChordLength(tigl3, startSectionIdx)
+        endScale = getChordLength(tigl3, endSectionIdx)
 
         # CAUTION There is no user-defined x-axis in CPACS2 guide curves. We have to make a reasonable guess
         x = [1., 0., 0.]
@@ -354,7 +351,7 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid, nProfile
 
     return rX, rY, rZ
 
-def convertGuideCurvePoints(tixi3, tixi2, tigl2, keepUnusedProfiles = False):
+def convertGuideCurvePoints(tixi3, tixi2, tigl2, tigl3, keepUnusedProfiles = False):
 
     print("Adapting guide curve profiles to CPACS 3 definition")
 
@@ -380,7 +377,7 @@ def convertGuideCurvePoints(tixi3, tixi2, tigl2, keepUnusedProfiles = False):
                 nProfiles-=1
         else:
             nProfilePoints = tixi3.getVectorSize(xpathProfile + "/pointList/x")
-            rX, rY, rZ = reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, guideCurveUid, nProfilePoints)
+            rX, rY, rZ = reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, nProfilePoints)
 
             tixi3.removeElement(xpathProfile + "/pointList")
             tixi3.createElement(xpathProfile, 'pointList')
@@ -544,7 +541,7 @@ def main():
     tigl3 = tigl3wrapper.Tigl3()
     tigl3.open(new_cpacs_file, "")
 
-    convertGuideCurvePoints(new_cpacs_file, old_cpacs_file, tigl2)
+    convertGuideCurvePoints(new_cpacs_file, old_cpacs_file, tigl2, tigl3)
 
     print ("Done")
     old_cpacs_file.save(filename)
