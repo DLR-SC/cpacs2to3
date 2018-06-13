@@ -18,6 +18,8 @@ import numpy as np
 
 from tigl import tiglwrapper
 from tigl3 import tigl3wrapper
+from tigl3.geometry import get_length
+import tigl3.configuration
 
 from tixi3 import tixi3wrapper
 from tixi3.tixi3wrapper import Tixi3Exception
@@ -248,9 +250,31 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
     tixi3.addDoubleElement(newElementXPath, 'eta', eta, '%g')
     tixi3.addTextElement(newElementXPath, 'referenceUID', uid)
 
-def getChordLength(tigl3, sectionUid):
-    #TODO
-    return 1.
+def getInnerAndOuterScale(tigl3_h, wingUid, segmentUid):
+
+    mgr = tigl3.configuration.CCPACSConfigurationManager_get_instance()
+    config = mgr.get_configuration(tigl3_h._handle.value)
+
+    try:
+        wing = config.get_wing(wingUid)
+    except:
+        print("Could not find a wing with uid {} in getInnerAndOuterScale.".format(wingUid))
+        return None
+
+    try:
+        segment = wing.get_segment(segmentUid)
+    except:
+        print("Could not find a segment with uid {} in getInnerAndOuterScale.".format(wingUid))
+        return None
+
+    wingTransform = wing.get_transformation_matrix()
+    innerConnection = segment.get_inner_connection()
+    outerConnection = segment.get_outer_connection()
+    innerProfileWire = innerConnection.get_profile().get_chord_line_wire()
+    outerProfileWire = outerConnection.get_profile().get_chord_line_wire()
+    innerChordLineWire = tigl3.configuration.transform_wing_profile_geometry(wingTransform, innerConnection, innerProfileWire)
+    outerChordLineWire = tigl3.configuration.transform_wing_profile_geometry(wingTransform, outerConnection, outerProfileWire)
+    return get_length(innerChordLineWire), get_length(outerChordLineWire)
 
 def findGuideCurveUsingProfile(tixi2, profileUid):
 
@@ -281,18 +305,6 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, n
     # get start segment and end segment to determine the scale
     segmentXPath = parentPath(parentPath(guideCurveXPath))
 
-    fromElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/fromElementUID'))
-    startSectionXPath = parentPath(parentPath(fromElementXPath))
-    a = startSectionXPath.rfind('[') + 1
-    b = startSectionXPath.rfind(']')
-    startSectionIdx = int(startSectionXPath[a:b])
-
-    toElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/toElementUID'))
-    endSectionXPath = parentPath(parentPath(toElementXPath))
-    a = endSectionXPath.rfind('[') + 1
-    b = endSectionXPath.rfind(']')
-    endSectionIdx = int(endSectionXPath[a:b])
-
     rX = np.zeros([nProfilePoints+2,1])
     rY = np.zeros([nProfilePoints+2,1])
     rZ = np.zeros([nProfilePoints+2,1])
@@ -300,17 +312,35 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, n
     # check if the guideCurve is on a wing or a fuselage
     if 'wing' in guideCurveXPath:
         print('   It\'s a wing! The start and end scales are not calculated correctly yet')
-        # TODO startScale, endScale is innerChordlineLength and outerChordLineLength
-        startScale = getChordLength(tigl3, startSectionIdx)
-        endScale = getChordLength(tigl3, endSectionIdx)
+
+        wingXPath = parentPath(parentPath(segmentXPath))
+        wingUid = tixi2.getTextAttribute(wingXPath, 'uID')
+        segmentUid = tixi2.getTextAttribute(segmentXPath, 'uID')
+
+        startScale, endScale = getInnerAndOuterScale(tigl3, wingUid, segmentUid)
 
         # CAUTION There is no user-defined x-axis in CPACS2 guide curves. We have to make a reasonable guess
         x = [1., 0., 0.]
-    else:
+    elif 'fuselage' in guideCurveXPath:
+        fromElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/fromElementUID'))
+        startSectionXPath = parentPath(parentPath(fromElementXPath))
+        a = startSectionXPath.rfind('[') + 1
+        b = startSectionXPath.rfind(']')
+        startSectionIdx = int(startSectionXPath[a:b])
+
+        toElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/toElementUID'))
+        endSectionXPath = parentPath(parentPath(toElementXPath))
+        a = endSectionXPath.rfind('[') + 1
+        b = endSectionXPath.rfind(']')
+        endSectionIdx = int(endSectionXPath[a:b])
+
         startScale = tigl2.fuselageGetCircumference(1, startSectionIdx, 0) / math.pi
         endScale = tigl2.fuselageGetCircumference(1, endSectionIdx - 1, 1) / math.pi
         # CAUTION There is no user-defined x-axis in CPACS2 guide curves. We have to make a reasonable guess
         x = [0., 0., 1.]
+    else:
+        print("Guide Curve Conversion is only implemented for fuselage and wing guide curves!")
+        return None
 
     px, py, pz = tigl2.getGuideCurvePoints(guideCurveUid, nProfilePoints+2)
 
