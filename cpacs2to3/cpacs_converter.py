@@ -19,6 +19,7 @@ import numpy as np
 from tigl import tiglwrapper
 from tigl3 import tigl3wrapper
 from tigl3.geometry import get_length
+from tigl3.configuration import transform_wing_profile_geometry
 import tigl3.configuration
 
 from tixi3 import tixi3wrapper
@@ -26,6 +27,7 @@ from tixi3.tixi3wrapper import Tixi3Exception
 from tixi import tixiwrapper
 
 from datetime import datetime
+from OCC.TopoDS import topods
 
 
 class UIDGenerator(object):
@@ -272,9 +274,9 @@ def getInnerAndOuterScale(tigl3_h, wingUid, segmentUid):
     outerConnection = segment.get_outer_connection()
     innerProfileWire = innerConnection.get_profile().get_chord_line_wire()
     outerProfileWire = outerConnection.get_profile().get_chord_line_wire()
-    innerChordLineWire = tigl3.configuration.transform_wing_profile_geometry(wingTransform, innerConnection, innerProfileWire)
-    outerChordLineWire = tigl3.configuration.transform_wing_profile_geometry(wingTransform, outerConnection, outerProfileWire)
-    return get_length(innerChordLineWire), get_length(outerChordLineWire)
+    innerChordLineWire = transform_wing_profile_geometry(wingTransform, innerConnection, innerProfileWire)
+    outerChordLineWire = transform_wing_profile_geometry(wingTransform, outerConnection, outerProfileWire)
+    return get_length(topods.Wire(innerChordLineWire)), get_length(topods.Wire(outerChordLineWire))
 
 def findGuideCurveUsingProfile(tixi2, profileUid):
 
@@ -311,8 +313,6 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, n
 
     # check if the guideCurve is on a wing or a fuselage
     if 'wing' in guideCurveXPath:
-        print('   It\'s a wing! The start and end scales are not calculated correctly yet')
-
         wingXPath = parentPath(parentPath(segmentXPath))
         wingUid = tixi2.getTextAttribute(wingXPath, 'uID')
         segmentUid = tixi2.getTextAttribute(segmentXPath, 'uID')
