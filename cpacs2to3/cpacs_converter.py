@@ -296,8 +296,6 @@ def findGuideCurveUsingProfile(tixi2, profileUid):
 
                     if profileUid == currentProfileUid:
                         return tixi2.getTextAttribute(xpathGuideCurve, 'uID')
-
-    print("   Could not find a guide curve referencing the profile with uid {}".format(profileUid))
     return None
 
 def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, nProfilePoints):
@@ -385,14 +383,18 @@ def convertGuideCurvePoints(tixi3, tixi2, tigl2, tigl3, keepUnusedProfiles = Fal
 
     print("Adapting guide curve profiles to CPACS 3 definition")
 
-    # go through all guide curve profiles
-    xpath = 'cpacs/vehicles/profiles/guideCurveProfiles'
+    # rename guideCurveProfiles to guideCurves
+    tixi3.createElement('cpacs/vehicles/profiles','guideCurves')
+    xpathNew = 'cpacs/vehicles/profiles/guideCurves'
 
-    nProfiles = tixi3.getNumberOfChilds(xpath)
+    # go through all guide curve profiles
+    xpathOld = 'cpacs/vehicles/profiles/guideCurveProfiles'
+
+    nProfiles = tixi3.getNumberOfChilds(xpathOld)
     idx = 0
     while idx < nProfiles:
         idx+=1
-        xpathProfile = xpath + '/guideCurveProfile[{}]'.format(idx)
+        xpathProfile = xpathOld + '/guideCurveProfile[{}]'.format(idx)
         profileUid = tixi3.getTextAttribute(xpathProfile, 'uID')
 
         guideCurveUid = findGuideCurveUsingProfile(tixi3, profileUid)
@@ -406,15 +408,30 @@ def convertGuideCurvePoints(tixi3, tixi2, tigl2, tigl3, keepUnusedProfiles = Fal
                 idx-=1
                 nProfiles-=1
         else:
+            tixi3.createElementAtIndex(xpathNew, 'guideCurveProfile', idx)
+            xpathNewProfile = xpathNew + '/guideCurveProfile[{}]'.format(idx)
+
+            # copy uid
+            tixi3.uIDSetToXPath(xpathProfile, profileUid + 'tmp')
+            tixi3.uIDSetToXPath(xpathNewProfile, profileUid)
+
+            #copy name and description
+            if tixi3.checkElement(xpathProfile + '/name'):
+                name = tixi3.getTextElement(xpathProfile + '/name')
+                tixi3.addTextElement(xpathNewProfile, 'name', name)
+            if tixi3.checkElement(xpathProfile + '/description'):
+                name = tixi3.getTextElement(xpathProfile + '/description')
+                tixi3.addTextElement(xpathNewProfile, 'description', name)
+
             nProfilePoints = tixi3.getVectorSize(xpathProfile + "/pointList/x")
             rX, rY, rZ = reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, nProfilePoints)
+            tixi3.createElement(xpathNewProfile, 'pointList')
 
-            tixi3.removeElement(xpathProfile + "/pointList")
-            tixi3.createElement(xpathProfile, 'pointList')
+            tixi3.addFloatVector(xpathNewProfile + "/pointList", 'rX', rX, len(rX), '%g')
+            tixi3.addFloatVector(xpathNewProfile + "/pointList", 'rY', rY, len(rY), '%g')
+            tixi3.addFloatVector(xpathNewProfile + "/pointList", 'rZ', rZ, len(rZ), '%g')
 
-            tixi3.addFloatVector(xpathProfile + "/pointList", 'rX', rX, len(rX), '%g')
-            tixi3.addFloatVector(xpathProfile + "/pointList", 'rY', rY, len(rY), '%g')
-            tixi3.addFloatVector(xpathProfile + "/pointList", 'rZ', rZ, len(rZ), '%g')
+    tixi3.removeElement(xpathOld)
 
 
     
