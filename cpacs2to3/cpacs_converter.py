@@ -251,44 +251,45 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
     tixi3.addDoubleElement(newElementXPath, 'eta', eta, '%g')
     tixi3.addTextElement(newElementXPath, 'referenceUID', uid)
 
-etaXpath = (
-    '//track/eta|' +
-    '//cutOutProfile/eta|' +
-    '//intermediateAirfoil/eta|' +
-    '//positioningInnerBorder/eta1|' +
-    '//positioningOuterBorder/eta1|' +
-    '//positioningInnerBorder/eta2|' +
-    '//positioningOuterBorder/eta2|' +
-    '//ribsPositioning/etaStart|' +
-    '//ribsPositioning/etaEnd|' +
-    '//ribExplicitPositioning/etaStart|' +
-    '//ribExplicitPositioning/etaEnd|' +
-    '//innerBorder/etaLE|' +
-    '//outerBorder/etaLE|' +
-    '//innerBorder/etaTE|' +
-    '//outerBorder/etaTE|' +
-    '//position/etaOutside|' +
-    '//sparCell/fromEta|' +
-    '//sparCell/toEta'
-)
 
-xsiXpath = (
-    '//stringer/innerBorderXsiLE|' +
-    '//stringer/innerBorderXsiTE|' +
-    '//stringer/outerBorderXsiLE|' +
-    '//stringer/outerBorderXsiTE|' +
-    '//innerBorder/xsiLE|' +
-    '//outerBorder/xsiLE|' +
-    '//innerBorder/xsiTE|' +
-    '//outerBorder/xsiTE|' +
-    '//position/xsiInside'
-)
-    
 def convertEtaXsiIsoLines(tixi3):
     """
     Convertes eta/xsi and elementUID values to eta/xsi iso lines
     :param tixi3: TiXI 3 handle
     """
+
+    etaXpath = (
+        '//track/eta|' +
+        '//cutOutProfile/eta|' +
+        '//intermediateAirfoil/eta|' +
+        '//positioningInnerBorder/eta1|' +
+        '//positioningOuterBorder/eta1|' +
+        '//positioningInnerBorder/eta2|' +
+        '//positioningOuterBorder/eta2|' +
+        '//ribsPositioning/etaStart|' +
+        '//ribsPositioning/etaEnd|' +
+        '//ribExplicitPositioning/etaStart|' +
+        '//ribExplicitPositioning/etaEnd|' +
+        '//innerBorder/etaLE|' +
+        '//outerBorder/etaLE|' +
+        '//innerBorder/etaTE|' +
+        '//outerBorder/etaTE|' +
+        '//position/etaOutside|' +
+        '//sparCell/fromEta|' +
+        '//sparCell/toEta'
+    )
+
+    xsiXpath = (
+        '//stringer/innerBorderXsiLE|' +
+        '//stringer/innerBorderXsiTE|' +
+        '//stringer/outerBorderXsiLE|' +
+        '//stringer/outerBorderXsiTE|' +
+        '//innerBorder/xsiLE|' +
+        '//outerBorder/xsiLE|' +
+        '//innerBorder/xsiTE|' +
+        '//outerBorder/xsiTE|' +
+        '//position/xsiInside'
+    )
 
     def convertIsoLineCoords(tixi3, xpath, elementName):
         """
@@ -408,6 +409,47 @@ def convertEtaXsiValues(tixi3, tigl2, tigl3):
     wingSegmentUids = [tixi3.getTextAttribute(xpath, 'uID') for xpath in get_all_paths_matching(tixi3, '//wing/segments/segment')]
     tedUids         = [tixi3.getTextAttribute(xpath, 'uID') for xpath in get_all_paths_matching(tixi3, '//trailingEdgeDevice')]
 
+    etaXpath = (
+        '//track/eta|' +
+        '//cutOutProfile/eta|' +
+        '//intermediateAirfoil/eta|'
+# to convert eta/xsi values for wing cells, we have to convert them pairwise (eta and xsi together)
+# but the cell borders might be described by spars and ribs, so we would have to interpret the borders on a spar or rib
+# this is hard, so we skip this for now
+#        '//positioningInnerBorder/eta1|' +
+#        '//positioningOuterBorder/eta1|' +
+#        '//positioningInnerBorder/eta2|' +
+#        '//positioningOuterBorder/eta2|' +
+# rib eta values depend on the reference line specified in ribReference or startReference/endReference
+# those do not need to be converted
+#        '//ribsPositioning/etaStart|' +
+#        '//ribsPositioning/etaEnd|' +
+#        '//ribExplicitPositioning/etaStart|' +
+#        '//ribExplicitPositioning/etaEnd|' +
+# similar problem as with wing cells
+#        '//innerBorder/etaLE|' +
+#        '//outerBorder/etaLE|' +
+#        '//innerBorder/etaTE|' +
+#        '//outerBorder/etaTE|' +
+# we believe this is coupled with the xsiInside parameter
+#        '//position/etaOutside|' +
+# we do not have to convert these, as these are eta values on the spar (TODO: confirm this)
+#        '//sparCell/fromEta|' +
+#        '//sparCell/toEta'
+    )
+
+    xsiXpath = (''
+#        '//stringer/innerBorderXsiLE|' +
+#        '//stringer/innerBorderXsiTE|' +
+#        '//stringer/outerBorderXsiLE|' +
+#        '//stringer/outerBorderXsiTE|' +
+#        '//innerBorder/xsiLE|' +
+#        '//outerBorder/xsiLE|' +
+#        '//innerBorder/xsiTE|' +
+#        '//outerBorder/xsiTE|' +
+#        '//position/xsiInside'
+    )
+    
     # read all eta definitions
     for xpath in get_all_paths_matching(tixi3, etaXpath):
         eta = tixi3.getDoubleElement(xpath + '/eta')
