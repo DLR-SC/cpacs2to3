@@ -1,0 +1,33 @@
+package:
+  name: cpacs2to3
+  version: 0.2
+
+source:
+  git_url: https://github.com/DLR-SC/cpacs2to3.git
+  git_tag: master
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - python
+    - setuptools
+
+  run:
+    - python
+    - tigl3
+    - tigl
+    - tixi
+    - tixi3
+
+test:
+  imports:
+    - cpacs2to3
+
+  commands:
+    - cpacs2to3 --help
+
+about:
+  home:  https://github.com/DLR-SC/cpacs2to3
+  license: Apache 2.0
