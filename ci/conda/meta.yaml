@@ -1,13 +1,15 @@
+{% set data = load_setup_py_data() %}
+
 package:
   name: cpacs2to3
-  version: 0.2
+  version: {{ data.get('version') }}
 
 source:
-  git_url: https://github.com/DLR-SC/cpacs2to3.git
-  git_tag: master
+  git_url: ../../
 
 build:
-  number: 0
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 1) }}
+  noarch: python
 
 requirements:
   build:
@@ -20,6 +22,7 @@ requirements:
     - tigl
     - tixi
     - tixi3
+    - numpy
 
 test:
   imports:
