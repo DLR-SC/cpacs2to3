@@ -8,8 +8,10 @@ source:
   git_url: ../../
 
 build:
-  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 1) }}
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 3) }}
   noarch: python
+  entry_points:
+    - cpacs2to3 = cpacs2to3.cpacs_converter:main
 
 requirements:
   build:
@@ -19,8 +21,8 @@ requirements:
   run:
     - python
     - tigl3
-    - tigl
-    - tixi
+    - tigl >=2.2.3
+    - tixi >=2.2.4
     - tixi3
     - numpy
 
