@@ -13,15 +13,21 @@ from __future__ import print_function
 
 import argparse
 import re
+import math
+import numpy as np
 
 from tigl import tiglwrapper
 from tigl3 import tigl3wrapper
+from tigl3.geometry import get_length
+from tigl3.configuration import transform_wing_profile_geometry
+import tigl3.configuration
 
 from tixi3 import tixi3wrapper
 from tixi3.tixi3wrapper import Tixi3Exception
 from tixi import tixiwrapper
 
 from datetime import datetime
+from OCC.TopoDS import topods
 
 
 class UIDGenerator(object):
@@ -251,7 +257,176 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
     tixi3.addDoubleElement(newElementXPath, 'eta', eta, '%g')
     tixi3.addTextElement(newElementXPath, 'referenceUID', uid)
 
-    
+def getInnerAndOuterScale(tigl3_h, wingUid, segmentUid):
+
+    mgr = tigl3.configuration.CCPACSConfigurationManager_get_instance()
+    config = mgr.get_configuration(tigl3_h._handle.value)
+
+    try:
+        wing = config.get_wing(wingUid)
+    except:
+        print("Could not find a wing with uid {} in getInnerAndOuterScale.".format(wingUid))
+        return None
+
+    try:
+        segment = wing.get_segment(segmentUid)
+    except:
+        print("Could not find a segment with uid {} in getInnerAndOuterScale.".format(wingUid))
+        return None
+
+    wingTransform = wing.get_transformation_matrix()
+    innerConnection = segment.get_inner_connection()
+    outerConnection = segment.get_outer_connection()
+    innerProfileWire = innerConnection.get_profile().get_chord_line_wire()
+    outerProfileWire = outerConnection.get_profile().get_chord_line_wire()
+    innerChordLineWire = transform_wing_profile_geometry(wingTransform, innerConnection, innerProfileWire)
+    outerChordLineWire = transform_wing_profile_geometry(wingTransform, outerConnection, outerProfileWire)
+    return get_length(topods.Wire(innerChordLineWire)), get_length(topods.Wire(outerChordLineWire))
+
+def findGuideCurveUsingProfile(tixi2, profileUid):
+
+    # check all guide curves of all fuselages and wings
+    for type in ['fuselage', 'wing']:
+        xpath = 'cpacs/vehicles/aircraft/model/{}s'.format(type)
+        n = tixi2.getNumberOfChilds(xpath)
+        for idx in range(0, n):
+            xpathSegments = xpath + '/{}[{}]/segments'.format(type, idx + 1)
+            nSegments = tixi2.getNumberOfChilds(xpathSegments)
+            for segmentIdx in range(0, nSegments):
+                xpathGuideCurves = xpathSegments + '/segment[{}]/guideCurves'.format(segmentIdx + 1)
+                nCurves = tixi2.getNumberOfChilds(xpathGuideCurves)
+                for curveIdx in range(0, nCurves):
+                    xpathGuideCurve = xpathGuideCurves + '/guideCurve[{}]'.format(curveIdx + 1)
+                    currentProfileUid = tixi2.getTextElement(xpathGuideCurve + '/guideCurveProfileUID')
+
+                    if profileUid == currentProfileUid:
+                        return tixi2.getTextAttribute(xpathGuideCurve, 'uID')
+    return None
+
+def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, nProfilePoints):
+
+    guideCurveXPath = tixi2.uIDGetXPath(guideCurveUid)
+
+    # get start segment and end segment to determine the scale
+    segmentXPath = parentPath(parentPath(guideCurveXPath))
+
+    rX = np.zeros([nProfilePoints+2,1])
+    rY = np.zeros([nProfilePoints+2,1])
+    rZ = np.zeros([nProfilePoints+2,1])
+
+    # check if the guideCurve is on a wing or a fuselage
+    if 'wing' in guideCurveXPath:
+        wingXPath = parentPath(parentPath(segmentXPath))
+        wingUid = tixi2.getTextAttribute(wingXPath, 'uID')
+        segmentUid = tixi2.getTextAttribute(segmentXPath, 'uID')
+
+        startScale, endScale = getInnerAndOuterScale(tigl3, wingUid, segmentUid)
+
+        # CAUTION There is no user-defined x-axis in CPACS2 guide curves. We have to make a reasonable guess
+        x = [1., 0., 0.]
+    elif 'fuselage' in guideCurveXPath:
+        fromElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/fromElementUID'))
+        startSectionXPath = parentPath(parentPath(fromElementXPath))
+        a = startSectionXPath.rfind('[') + 1
+        b = startSectionXPath.rfind(']')
+        startSectionIdx = int(startSectionXPath[a:b])
+
+        toElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/toElementUID'))
+        endSectionXPath = parentPath(parentPath(toElementXPath))
+        a = endSectionXPath.rfind('[') + 1
+        b = endSectionXPath.rfind(']')
+        endSectionIdx = int(endSectionXPath[a:b])
+
+        startScale = tigl2.fuselageGetCircumference(1, startSectionIdx, 0) / math.pi
+        endScale = tigl2.fuselageGetCircumference(1, endSectionIdx - 1, 1) / math.pi
+        # CAUTION There is no user-defined x-axis in CPACS2 guide curves. We have to make a reasonable guess
+        x = [0., 0., 1.]
+    else:
+        print("Guide Curve Conversion is only implemented for fuselage and wing guide curves!")
+        return None
+
+    px, py, pz = tigl2.getGuideCurvePoints(guideCurveUid, nProfilePoints+2)
+
+    guideCurvePnts = np.zeros((3, nProfilePoints+2))
+    guideCurvePnts[0, :] = px
+    guideCurvePnts[1, :] = py
+    guideCurvePnts[2, :] = pz
+
+    start = guideCurvePnts[:, 0]
+    end   = guideCurvePnts[:,-1]
+
+    z = np.cross(x, end - start)
+
+    znorm = np.linalg.norm(z)
+    if abs(znorm) < 1e-10:
+        print("Error during guide curve profile point calculation: The last point and the first point seem to coincide!")
+        return
+
+    z = z / znorm
+
+    for i in range(0, np.size(guideCurvePnts, 1)):
+         current = guideCurvePnts[:,i]
+
+         # orthogonal projection
+         ny2 = np.dot(end - start, end - start)
+         rY[i] = np.dot(current - start, end - start)/ny2
+
+         scale = (1 - rY[i]) * startScale + rY[i] * endScale
+         midPoint = (1 - rY[i]) * start + rY[i] * end
+
+         rX[i] = np.dot(current - midPoint, x) / scale
+         rZ[i] = np.dot(current - midPoint, z) / scale
+
+    # post-processing. Remove first and last point
+    rX = rX[1:-1]
+    rY = rY[1:-1]
+    rZ = rZ[1:-1]
+
+    return rX, rY, rZ
+
+def convertGuideCurvePoints(tixi3, tixi2, tigl2, tigl3, keepUnusedProfiles = False):
+
+    print("Adapting guide curve profiles to CPACS 3 definition")
+
+    # rename guideCurveProfiles to guideCurves
+    if tixi3.checkElement("cpacs/vehicles/profiles/guideCurveProfiles"):
+        tixi3.renameElement("cpacs/vehicles/profiles", "guideCurveProfiles", "guideCurves")
+
+    xpath = "cpacs/vehicles/profiles/guideCurves"
+
+    nProfiles = tixi3.getNumberOfChilds(xpath)
+    idx = 0
+    while idx < nProfiles:
+        idx+=1
+        xpathProfile = xpath + '/guideCurveProfile[{}]'.format(idx)
+        profileUid = tixi3.getTextAttribute(xpathProfile, 'uID')
+
+        guideCurveUid = findGuideCurveUsingProfile(tixi3, profileUid)
+
+        if guideCurveUid is None:
+            # The guide curve profile appears to be unused
+            if not keepUnusedProfiles:
+                # If we don't need it, let's do some clean up
+                print("   Removing unused guide curve profile {}".format(profileUid))
+                tixi3.removeElement( xpathProfile )
+                idx-=1
+                nProfiles-=1
+        else:
+            # rename x to rX
+            if tixi3.checkElement(xpathProfile + "/pointList/x"):
+                tixi3.renameElement(xpathProfile + "/pointList", "x", "rX")
+            nProfilePoints = tixi3.getVectorSize(xpathProfile + "/pointList/rX")
+
+            rX, rY, rZ = reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, nProfilePoints)
+
+            tixi3.removeElement(xpathProfile + "/pointList")
+            tixi3.createElement(xpathProfile, "pointList")
+            tixi3.addFloatVector(xpathProfile + "/pointList", "rX", rX, len(rX), "%g")
+            tixi3.addFloatVector(xpathProfile + "/pointList", "rY", rY, len(rY), "%g")
+            tixi3.addFloatVector(xpathProfile + "/pointList", "rZ", rZ, len(rZ), "%g")
+
+
+
 def convertEtaXsiIsoLines(tixi3):
     """
     Convertes eta/xsi and elementUID values to eta/xsi iso lines
@@ -270,12 +445,12 @@ def convertEtaXsiIsoLines(tixi3):
 
             # get existing eta/xsi value
             value = tixi3.getDoubleElement(path)
-            
+
             # recreate element to make sure it's empty and properly formatted
             index = elementIndexInParent(tixi3, path)
             tixi3.removeElement(path)
             tixi3.createElementAtIndex(parentPath(path), childElement(path), index)
-            
+
             # add sub elements for eta/xsi iso line
             tixi3.addDoubleElement(path, elementName, value, '%g')
             tixi3.addTextElement(path, 'referenceUID', uid)
@@ -428,6 +603,8 @@ def main():
 
     tigl3 = tigl3wrapper.Tigl3()
     tigl3.open(new_cpacs_file, "")
+
+    convertGuideCurvePoints(new_cpacs_file, old_cpacs_file, tigl2, tigl3)
 
     print ("Done")
     old_cpacs_file.save(filename)
