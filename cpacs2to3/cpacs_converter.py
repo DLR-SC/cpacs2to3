@@ -386,13 +386,15 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, n
 
 def convertGuideCurvePoints(tixi3, tixi2, tigl2, tigl3, keepUnusedProfiles = False):
 
+    xpath = "cpacs/vehicles/profiles/guideCurves"
+    if not tixi3.checkElement(xpath):
+        return
+
     print("Adapting guide curve profiles to CPACS 3 definition")
 
     # rename guideCurveProfiles to guideCurves
     if tixi3.checkElement("cpacs/vehicles/profiles/guideCurveProfiles"):
         tixi3.renameElement("cpacs/vehicles/profiles", "guideCurveProfiles", "guideCurves")
-
-    xpath = "cpacs/vehicles/profiles/guideCurves"
 
     nProfiles = tixi3.getNumberOfChilds(xpath)
     idx = 0
