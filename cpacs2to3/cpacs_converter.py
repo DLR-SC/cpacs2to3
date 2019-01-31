@@ -63,6 +63,10 @@ class UIDGenerator(object):
         to avoid duplication of UIDs.
         :param uid:
         """
+
+        if self.uid_exists(uid):
+            raise RuntimeError('Duplicate UID: "%s"' % uid)
+
         self.uids.add(uid)
 
     def uid_exists(self, uid):
@@ -77,11 +81,30 @@ def register_uids(tixi3_handle):
     Gets all elements with uiDs and registers them
     :param tixi3_handle:
     """
+
+    duplicate_uids = []
+
     print ("Registering all uIDs")
-    paths = get_all_paths_matching(tixi3_handle, "//*[@uID]")
+    paths = get_all_paths_matching(tixi3_handle, "/cpacs/vehicles//*[@uID]")
     for elem in paths:
         uid = tixi3_handle.getTextAttribute(elem, "uID")
-        uidGenerator.register(uid)
+        if uid == "":
+            new_uid = uidGenerator.create(tixi3_handle, elem)
+            print('Replacing empty uid with "%s"' % new_uid)
+            tixi3_handle.removeAttribute(elem, "uID")
+            tixi3_handle.addTextAttribute(elem, "uID", new_uid)
+        else:
+            try:
+                uidGenerator.register(uid)
+            except RuntimeError:
+                duplicate_uids.append(uid)
+
+    if len(duplicate_uids) > 0:
+        print("There are duplicate uIDs in the data set:")
+        print('\n'.join(duplicate_uids))
+        return True
+    return False
+
 
 
 def change_cpacs_version(tixi3_handle):
@@ -165,6 +188,7 @@ def add_missing_uids(tixi3):
         '//globalBeamProperties/beamCOG|' +
         '//globalBeamProperties/beamShearCenter|' +
         '//globalBeamProperties/beamStiffness|' +
+        '//sparCell|' +
         genMassPaths('mTOM') + '|' +
         genMassPaths('mZFM') + '|' +
         genMassPaths('mMLM') + '|' +
@@ -177,6 +201,32 @@ def add_missing_uids(tixi3):
             add_uid(tixi3, path, uidGenerator.create(tixi3, path))
     except Tixi3Exception:
         pass
+
+
+def add_transformation_node(tixi3, path):
+    transformation_path = path + "/transformation"
+    if tixi3.checkElement(transformation_path) is False:
+        def add_trans_sub_node(transformation_path, node_name, x, y, z):
+            node_path = transformation_path + "/" + node_name
+            tixi3.createElement(transformation_path, node_name)
+            add_uid(tixi3, node_path, uidGenerator.create(tixi3, node_path))
+            tixi3.addDoubleElement(node_path, "x", x, "%g")
+            tixi3.addDoubleElement(node_path, "y", z, "%g")
+            tixi3.addDoubleElement(node_path, "z", x, "%g")
+
+        tixi3.createElement(path, "transformation")
+        add_uid(tixi3, transformation_path, uidGenerator.create(tixi3, transformation_path))
+
+        add_trans_sub_node(transformation_path, "scaling", 1., 1., 1.)
+        add_trans_sub_node(transformation_path, "rotation", 0., 0., 0.)
+        add_trans_sub_node(transformation_path, "translation", 0., 0., 0.)
+
+
+def addEnginePylonTransformation(tixi3):
+    paths = get_all_paths_matching(tixi3, "//enginePylons/enginePylon")
+    for path in paths:
+        add_transformation_node(tixi3, path)
+
 
 def findNearestCsOrTedUid(tixi3, xpath):
     """
@@ -465,8 +515,9 @@ def convertEtaXsiIsoLines(tixi3):
         '//positioningOuterBorder/eta1|' +
         '//positioningInnerBorder/eta2|' +
         '//positioningOuterBorder/eta2|' +
-        '//ribsPositioning/etaStart|' +
-        '//ribsPositioning/etaEnd|' +
+        # TODO: uncomment when TIGL has implemented new RibsPositioning
+        #'//ribsPositioning/etaStart|' +
+        #'//ribsPositioning/etaEnd|' +
         '//ribExplicitPositioning/etaStart|' +
         '//ribExplicitPositioning/etaEnd|' +
         '//innerBorder/etaLE|' +
@@ -493,10 +544,11 @@ def convertEtaXsiIsoLines(tixi3):
     convertIsoLineCoords(tixi3, xsiXpath, 'xsi')
     
     # convert elementUIDs
-    for path in get_all_paths_matching(tixi3, '//ribsPositioning/elementStartUID|'):
-        convertElementUidToEtaAndUid(tixi3, path, 'etaStart')
-    for path in get_all_paths_matching(tixi3, '//ribsPositioning/elementEndUID|'):
-        convertElementUidToEtaAndUid(tixi3, path, 'etaEnd')
+    # TODO: Uncomment, when TIGL supports new ribs positioning structure
+    #for path in get_all_paths_matching(tixi3, '//ribsPositioning/elementStartUID|'):
+    #    convertElementUidToEtaAndUid(tixi3, path, 'etaStart')
+    #for path in get_all_paths_matching(tixi3, '//ribsPositioning/elementEndUID|'):
+    #    convertElementUidToEtaAndUid(tixi3, path, 'etaEnd')
 
 def convertEtaXsiRelHeightPoints(tixi3):
     """
@@ -504,31 +556,9 @@ def convertEtaXsiRelHeightPoints(tixi3):
     :param tixi3: TiXI 3 handle
     """
 
-    # convert sparPosition
-    for path in get_all_paths_matching(tixi3, '//sparPosition'):
-        # get existing xsi value
-        xsi = tixi3.getDoubleElement(path + '/xsi')
-        tixi3.removeElement(path + '/xsi')
-        
-        if tixi3.checkElement(path + '/eta'):
-            # if we have an eta, get it
-            eta = tixi3.getDoubleElement(path + '/eta')
-            tixi3.removeElement(path + '/eta')
-            
-            uid = findNearestCsOrTedUid(tixi3, path)
-            
-            # add sub elements for rel height point
-            tixi3.createElement(path, 'sparPoint')
-            path = path + '/sparPoint'
-            tixi3.addDoubleElement(path, 'eta', eta, '%g')
-            tixi3.addDoubleElement(path, 'xsi', xsi, '%g')
-            tixi3.addTextElement(path, 'referenceUID', uid)
-        else:
-            # in case of elementUID, find wing segment which references the element and convert to eta
-            convertElementUidToEtaAndUid(tixi3, path + '/elementUID', 'sparPoint')
-            tixi3.addDoubleElement(path + '/sparPoint', 'xsi', xsi, '%g')
+    # TODO: uncomment when TiGL supports new spar positioning structure
+    # convertSparPositions(tixi3)# convert non-explicit stringer
 
-    # convert non-explicit stringer
     for path in get_all_paths_matching(tixi3, '//lowerShell/stringer|//upperShell/stringer|//cell/stringer'):
         if not tixi3.checkElement(path + '/pitch'):
             continue
@@ -554,6 +584,34 @@ def convertEtaXsiRelHeightPoints(tixi3):
         tixi3.addDoubleElement(path, 'xsi', xsi, '%g')
         tixi3.addTextElement(path, 'referenceUID', uid)
 
+
+def convertSparPositions(tixi3):
+
+    # convert sparPosition
+    for path in get_all_paths_matching(tixi3, '//sparPosition'):
+        # get existing xsi value
+        xsi = tixi3.getDoubleElement(path + '/xsi')
+        tixi3.removeElement(path + '/xsi')
+
+        if tixi3.checkElement(path + '/eta'):
+            # if we have an eta, get it
+            eta = tixi3.getDoubleElement(path + '/eta')
+            tixi3.removeElement(path + '/eta')
+
+            uid = findNearestCsOrTedUid(tixi3, path)
+
+            # add sub elements for rel height point
+            tixi3.createElement(path, 'sparPoint')
+            path = path + '/sparPoint'
+            tixi3.addDoubleElement(path, 'eta', eta, '%g')
+            tixi3.addDoubleElement(path, 'xsi', xsi, '%g')
+            tixi3.addTextElement(path, 'referenceUID', uid)
+        else:
+            # in case of elementUID, find wing segment which references the element and convert to eta
+            convertElementUidToEtaAndUid(tixi3, path + '/elementUID', 'sparPoint')
+            tixi3.addDoubleElement(path + '/sparPoint', 'xsi', xsi, '%g')
+
+
 def get_parent_child_path(child_path):
     while child_path[-1] == '/':
         child_path = child_path[0:-1]
@@ -578,24 +636,32 @@ def main():
     parser = argparse.ArgumentParser(description='Converts a CPACS file from Version 2 to Version 3.')
     parser.add_argument('input_file', help='Input CPACS 2 file')
     parser.add_argument('-o', metavar='output_file', help='Name of the output file.')
+    parser.add_argument('--force', '-f', help='force continue on errors',  action="store_true")
 
     args = parser.parse_args()
+    force_continue = args.force
 
     old_cpacs_file = tixiwrapper.Tixi()
     new_cpacs_file = tixi3wrapper.Tixi3()
+
 
     filename = args.input_file
     output_file = args.o
 
     old_cpacs_file.open(filename)
     new_cpacs_file.open(filename)
+    new_cpacs_file.setCacheEnabled(1)
     # new_cpacs_file.usePrettyPrint(1)
 
-    register_uids(new_cpacs_file)
+    duplicate_uids = register_uids(new_cpacs_file)
+    if duplicate_uids and not force_continue:
+        print ("Aborting due to duplicate uids")
+        exit(-1)
 
     # perform structural changes
     change_cpacs_version(new_cpacs_file)
     add_missing_uids(new_cpacs_file)
+    addEnginePylonTransformation(new_cpacs_file)
     convertEtaXsiIsoLines(new_cpacs_file)
     convertEtaXsiRelHeightPoints(new_cpacs_file)
     add_changelog(new_cpacs_file)
@@ -609,7 +675,6 @@ def main():
     convertGuideCurvePoints(new_cpacs_file, old_cpacs_file, tigl2, tigl3)
 
     print ("Done")
-    old_cpacs_file.save(filename)
 
     if output_file is not None:
         new_cpacs_file.save(output_file)

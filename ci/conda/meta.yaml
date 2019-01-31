@@ -23,7 +23,7 @@ requirements:
     - tigl3
     - tigl >=2.2.3
     - tixi >=2.2.4
-    - tixi3
+    - tixi3 >=3.0.3
     - numpy
 
 test:
