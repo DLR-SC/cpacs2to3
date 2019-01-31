@@ -4,7 +4,7 @@ from distutils.extension import Extension
 
 setup(
 	name='cpacs2to3',
-	version='0.2',
+	version='0.3',
 	description='Converts CPACS 2 files to CPACS3 files',
 	author='Martin Siggel',
 	author_email=',martin.siggel@dlr.de',

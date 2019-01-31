@@ -12,68 +12,24 @@ Still to be implemented:
 from __future__ import print_function
 
 import argparse
-import re
 import math
-import numpy as np
+import re
+from datetime import datetime
 
+import numpy as np
+import tigl3.configuration
+from OCC.TopoDS import topods
 from tigl import tiglwrapper
 from tigl3 import tigl3wrapper
-from tigl3.geometry import get_length
 from tigl3.configuration import transform_wing_profile_geometry
-import tigl3.configuration
-
+from tigl3.geometry import get_length
+from tixi import tixiwrapper
 from tixi3 import tixi3wrapper
 from tixi3.tixi3wrapper import Tixi3Exception
-from tixi import tixiwrapper
 
-from datetime import datetime
-from OCC.TopoDS import topods
-
-
-class UIDGenerator(object):
-    def __init__(self):
-        self.counter = 0
-        self.uids = set()
-
-    def create(self, tixi_handle, current_path):
-        parent, elem = get_parent_child_path(current_path)
-        while not tixi_handle.checkAttribute(parent, "uID"):
-            parent, _ = get_parent_child_path(parent)
-            if parent == '':
-                break;
-
-        if parent != '':
-            parent_uid = tixi_handle.getTextAttribute(parent, "uID")
-        else:
-            parent_uid = ''
-
-        counter = 1
-        new_uid = "%s_%s%d" % (parent_uid, elem, counter)
-        while self.uid_exists(new_uid):
-            counter += 1
-            new_uid = "%s_%s%d" % (parent_uid, elem, counter)
-
-        self.register(new_uid)
-        return new_uid
-
-    def register(self, uid):
-        """
-        Register an existing uid at the generator
-        This is, to make sure this uid won't generated
-        to avoid duplication of UIDs.
-        :param uid:
-        """
-
-        if self.uid_exists(uid):
-            raise RuntimeError('Duplicate UID: "%s"' % uid)
-
-        self.uids.add(uid)
-
-    def uid_exists(self, uid):
-        return uid in self.uids
-
-
-uidGenerator = UIDGenerator()
+import cpacs2to3.tixi_helper as tixihelper
+from cpacs2to3.tixi_helper import parent_path, element_name, element_index
+from cpacs2to3.uid_generator import uidGenerator
 
 
 def register_uids(tixi3_handle):
@@ -82,29 +38,23 @@ def register_uids(tixi3_handle):
     :param tixi3_handle:
     """
 
-    duplicate_uids = []
+    invalid_uids = []
+    empty_uid_paths = []
 
     print ("Registering all uIDs")
-    paths = get_all_paths_matching(tixi3_handle, "/cpacs/vehicles//*[@uID]")
+    paths = tixihelper.resolve_xpaths(tixi3_handle, "/cpacs/vehicles//*[@uID]")
     for elem in paths:
         uid = tixi3_handle.getTextAttribute(elem, "uID")
         if uid == "":
-            new_uid = uidGenerator.create(tixi3_handle, elem)
-            print('Replacing empty uid with "%s"' % new_uid)
-            tixi3_handle.removeAttribute(elem, "uID")
-            tixi3_handle.addTextAttribute(elem, "uID", new_uid)
+            empty_uid_paths.append(elem)
         else:
             try:
                 uidGenerator.register(uid)
             except RuntimeError:
-                duplicate_uids.append(uid)
+                invalid_uids.append(uid)
 
-    if len(duplicate_uids) > 0:
-        print("There are duplicate uIDs in the data set:")
-        print('\n'.join(duplicate_uids))
-        return True
-    return False
-
+    invalid_uids = list(sorted(set(invalid_uids)))
+    return invalid_uids, empty_uid_paths
 
 
 def change_cpacs_version(tixi3_handle):
@@ -134,17 +84,6 @@ def add_changelog(tixi3_handle):
     tixi3_handle.addTextElement(xpath, "cpacsVersion", "3.0")
 
 
-def get_all_paths_matching(tixi3, xpath):
-    try:
-        n_nodes = tixi3.xPathEvaluateNodeNumber(xpath)
-        paths = []
-        for i in range(0, n_nodes):
-            paths.append(tixi3.xPathExpressionGetXPath(xpath, i+1))
-        return paths
-    except Tixi3Exception:
-        return []
-
-
 def add_uid(tixi3, xpath, uid):
     if not tixi3.checkElement(xpath):
         return
@@ -154,7 +93,7 @@ def add_uid(tixi3, xpath, uid):
 
 def add_missing_uids(tixi3):
     print("Add missing uIDs")
-    paths = get_all_paths_matching(tixi3, "//transformation")
+    paths = tixihelper.resolve_xpaths(tixi3, "//transformation")
     for path in paths:
         add_uid(tixi3, path, uidGenerator.create(tixi3, path))
         add_uid(tixi3, path + "/rotation", uidGenerator.create(tixi3, path + "/rotation"))
@@ -196,17 +135,26 @@ def add_missing_uids(tixi3):
         genMassPaths('massDescription')
     )
     try:
-        paths = get_all_paths_matching(tixi3, xpath)
+        paths = tixihelper.resolve_xpaths(tixi3, xpath)
         for path in paths:
             add_uid(tixi3, path, uidGenerator.create(tixi3, path))
     except Tixi3Exception:
         pass
 
 
-def add_transformation_node(tixi3, path):
-    transformation_path = path + "/transformation"
+def add_cpacs_transformation_node(tixi3, element_path):
+    """
+    Adds a transformation node to the element
+    :param tixi3:
+    :param element_path:
+    :return:
+    """
+
+    transformation_path = element_path + "/transformation"
     if tixi3.checkElement(transformation_path) is False:
-        def add_trans_sub_node(transformation_path, node_name, x, y, z):
+        print ("Adding transformation node to %s" % element_path)
+
+        def add_trans_sub_node(node_name, x, y, z):
             node_path = transformation_path + "/" + node_name
             tixi3.createElement(transformation_path, node_name)
             add_uid(tixi3, node_path, uidGenerator.create(tixi3, node_path))
@@ -214,18 +162,22 @@ def add_transformation_node(tixi3, path):
             tixi3.addDoubleElement(node_path, "y", z, "%g")
             tixi3.addDoubleElement(node_path, "z", x, "%g")
 
-        tixi3.createElement(path, "transformation")
+        tixi3.createElement(element_path, "transformation")
         add_uid(tixi3, transformation_path, uidGenerator.create(tixi3, transformation_path))
 
-        add_trans_sub_node(transformation_path, "scaling", 1., 1., 1.)
-        add_trans_sub_node(transformation_path, "rotation", 0., 0., 0.)
-        add_trans_sub_node(transformation_path, "translation", 0., 0., 0.)
+        add_trans_sub_node("scaling", 1., 1., 1.)
+        add_trans_sub_node("rotation", 0., 0., 0.)
+        add_trans_sub_node("translation", 0., 0., 0.)
 
 
-def addEnginePylonTransformation(tixi3):
-    paths = get_all_paths_matching(tixi3, "//enginePylons/enginePylon")
+def add_transformation_nodes(tixi3):
+    xpaths = (
+        '//enginePylons/enginePylon'
+    )
+
+    paths = tixihelper.resolve_xpaths(tixi3, xpaths)
     for path in paths:
-        add_transformation_node(tixi3, path)
+        add_cpacs_transformation_node(tixi3, path)
 
 
 def findNearestCsOrTedUid(tixi3, xpath):
@@ -240,37 +192,6 @@ def findNearestCsOrTedUid(tixi3, xpath):
     return uid
 
 
-def childElement(xpath):
-    """
-    Gives the last element in an xpath
-    :param xpath: An xpath with at least one '/'
-    """
-    return xpath[xpath.rfind('/') + 1:]
-
-
-def parentPath(xpath):
-    """
-    Removes the last element in an xpath, effectively yielding the xpath to the parent element
-    :param xpath: An xpath with at least one '/'
-    """
-    return xpath[:xpath.rfind('/')]
-
-
-def elementIndexInParent(tixi3, xpath):
-    """
-    Finds the index of the child element in the given xpath in its parent element
-    :param tixi3: TiXI 3 handle
-    :param xpath: An xpath with at least one '/'
-    """
-    parentXPath = parentPath(xpath)
-    childName = childElement(xpath)
-    count = tixi3.getNumberOfChilds(parentXPath)
-    for i in range(count):
-        if tixi3.getChildNodeName(parentXPath, i + 1) == childName:
-            return i + 1
-    return count
-
-    
 def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
     """
     Converts an elementUID element to an eta/xsi value and a referenceUID to a wing segment referencing the wing section element from elementUID.
@@ -282,16 +203,16 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
 
     # read and remove elementUid
     elementUid = tixi3.getTextElement(xpath)
-    index = elementIndexInParent(tixi3, xpath)
+    index = element_index(tixi3, xpath)
     tixi3.removeElement(xpath)
     
     # convert
-    wingSegments = get_all_paths_matching(tixi3, '//wing/segments/segment[./toElementUID[text()=\'' + elementUid + '\']]')
+    wingSegments = tixihelper.resolve_xpaths(tixi3, '//wing/segments/segment[./toElementUID[text()=\'' + elementUid + '\']]')
     if len(wingSegments) > 0:
         eta = 1.0
         uid = tixi3.getTextAttribute(wingSegments[0], 'uID')
     else:
-        wingSegments = get_all_paths_matching(tixi3, '//wing/segments/segment[./fromElementUID[text()=\'' + elementUid + '\']]')
+        wingSegments = tixihelper.resolve_xpaths(tixi3, '//wing/segments/segment[./fromElementUID[text()=\'' + elementUid + '\']]')
         if len(wingSegments) > 0:
             eta = 0.0
             uid = tixi3.getTextAttribute(wingSegments[0], 'uID')
@@ -301,7 +222,7 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
             uid = 'TODO'
     
     # write eta iso line
-    parentXPath = parentPath(xpath)
+    parentXPath = parent_path(xpath)
     tixi3.createElementAtIndex(parentXPath, elementName, index)
     newElementXPath = parentXPath + '/' + elementName
     tixi3.addDoubleElement(newElementXPath, 'eta', eta, '%g')
@@ -358,7 +279,7 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, n
     guideCurveXPath = tixi2.uIDGetXPath(guideCurveUid)
 
     # get start segment and end segment to determine the scale
-    segmentXPath = parentPath(parentPath(guideCurveXPath))
+    segmentXPath = parent_path(parent_path(guideCurveXPath))
 
     rX = np.zeros([nProfilePoints+2,1])
     rY = np.zeros([nProfilePoints+2,1])
@@ -366,7 +287,7 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, n
 
     # check if the guideCurve is on a wing or a fuselage
     if 'wing' in guideCurveXPath:
-        wingXPath = parentPath(parentPath(segmentXPath))
+        wingXPath = parent_path(parent_path(segmentXPath))
         wingUid = tixi2.getTextAttribute(wingXPath, 'uID')
         segmentUid = tixi2.getTextAttribute(segmentXPath, 'uID')
 
@@ -376,13 +297,13 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, n
         x = [1., 0., 0.]
     elif 'fuselage' in guideCurveXPath:
         fromElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/fromElementUID'))
-        startSectionXPath = parentPath(parentPath(fromElementXPath))
+        startSectionXPath = parent_path(parent_path(fromElementXPath))
         a = startSectionXPath.rfind('[') + 1
         b = startSectionXPath.rfind(']')
         startSectionIdx = int(startSectionXPath[a:b])
 
         toElementXPath = tixi2.uIDGetXPath(tixi2.getTextElement(segmentXPath + '/toElementUID'))
-        endSectionXPath = parentPath(parentPath(toElementXPath))
+        endSectionXPath = parent_path(parent_path(toElementXPath))
         a = endSectionXPath.rfind('[') + 1
         b = endSectionXPath.rfind(']')
         endSectionIdx = int(endSectionXPath[a:b])
@@ -492,16 +413,16 @@ def convertEtaXsiIsoLines(tixi3):
         :param xpath: XPath matching multiple eta or xsi double values
         :param elementName: Name of the new element storing the eta/xsi value in the created iso line. Is either 'eta' or 'xsi'
         """
-        for path in get_all_paths_matching(tixi3, xpath):
+        for path in tixihelper.resolve_xpaths(tixi3, xpath):
             uid = findNearestCsOrTedUid(tixi3, path)
 
             # get existing eta/xsi value
             value = tixi3.getDoubleElement(path)
 
             # recreate element to make sure it's empty and properly formatted
-            index = elementIndexInParent(tixi3, path)
+            index = element_index(tixi3, path)
             tixi3.removeElement(path)
-            tixi3.createElementAtIndex(parentPath(path), childElement(path), index)
+            tixi3.createElementAtIndex(parent_path(path), element_name(path), index)
 
             # add sub elements for eta/xsi iso line
             tixi3.addDoubleElement(path, elementName, value, '%g')
@@ -559,7 +480,7 @@ def convertEtaXsiRelHeightPoints(tixi3):
     # TODO: uncomment when TiGL supports new spar positioning structure
     # convertSparPositions(tixi3)# convert non-explicit stringer
 
-    for path in get_all_paths_matching(tixi3, '//lowerShell/stringer|//upperShell/stringer|//cell/stringer'):
+    for path in tixihelper.resolve_xpaths(tixi3, '//lowerShell/stringer|//upperShell/stringer|//cell/stringer'):
         if not tixi3.checkElement(path + '/pitch'):
             continue
     
@@ -588,7 +509,7 @@ def convertEtaXsiRelHeightPoints(tixi3):
 def convertSparPositions(tixi3):
 
     # convert sparPosition
-    for path in get_all_paths_matching(tixi3, '//sparPosition'):
+    for path in tixihelper.resolve_xpaths(tixi3, '//sparPosition'):
         # get existing xsi value
         xsi = tixi3.getDoubleElement(path + '/xsi')
         tixi3.removeElement(path + '/xsi')
@@ -612,21 +533,6 @@ def convertSparPositions(tixi3):
             tixi3.addDoubleElement(path + '/sparPoint', 'xsi', xsi, '%g')
 
 
-def get_parent_child_path(child_path):
-    while child_path[-1] == '/':
-        child_path = child_path[0:-1]
-    pos = child_path.rindex('/')
-
-    parent = child_path[0:pos]
-    child = child_path[pos+1:]
-
-    pos = child.rfind("[")
-    if pos > 0:
-        child = child[0:pos]
-
-    return parent, child
-
-
 def get_new_cs_coordinates(tigl2, tigl3, compseg_uid, eta_old, xsi_old):
     px, py, pz = tigl2.wingComponentSegmentGetPoint(compseg_uid, eta_old, xsi_old)
     return tigl3.wingComponentSegmentPointGetEtaXsi(compseg_uid, px, py, pz)
@@ -636,10 +542,10 @@ def main():
     parser = argparse.ArgumentParser(description='Converts a CPACS file from Version 2 to Version 3.')
     parser.add_argument('input_file', help='Input CPACS 2 file')
     parser.add_argument('-o', metavar='output_file', help='Name of the output file.')
-    parser.add_argument('--force', '-f', help='force continue on errors',  action="store_true")
+    parser.add_argument('--fix-invalid-uids', '-f', help='fix empty and duplicate uids',  action="store_true")
 
     args = parser.parse_args()
-    force_continue = args.force
+    do_fix_uids = args.fix_invalid_uids
 
     old_cpacs_file = tixiwrapper.Tixi()
     new_cpacs_file = tixi3wrapper.Tixi3()
@@ -648,23 +554,31 @@ def main():
     filename = args.input_file
     output_file = args.o
 
-    old_cpacs_file.open(filename)
     new_cpacs_file.open(filename)
     new_cpacs_file.setCacheEnabled(1)
     # new_cpacs_file.usePrettyPrint(1)
 
-    duplicate_uids = register_uids(new_cpacs_file)
-    if duplicate_uids and not force_continue:
-        print ("Aborting due to duplicate uids")
-        exit(-1)
+    invalid_uids, empty_uids = register_uids(new_cpacs_file)
+    if len(invalid_uids) + len(empty_uids) > 0  and do_fix_uids:
+        tixihelper.fix_invalid_uids(empty_uids, invalid_uids, new_cpacs_file)
+
+        print("A fixed cpacs2 file will be stored to '%s'" % (filename + ".fixed"))
+        fixed_cpacs_str = new_cpacs_file.exportDocumentAsString()
+        with open(filename + ".fixed", "w") as text_file:
+            text_file.write(fixed_cpacs_str)
+    else:
+        fixed_cpacs_str = new_cpacs_file.exportDocumentAsString()
+
+    old_cpacs_file.openString(fixed_cpacs_str)
 
     # perform structural changes
     change_cpacs_version(new_cpacs_file)
     add_missing_uids(new_cpacs_file)
-    addEnginePylonTransformation(new_cpacs_file)
+    add_transformation_nodes(new_cpacs_file)
     convertEtaXsiIsoLines(new_cpacs_file)
     convertEtaXsiRelHeightPoints(new_cpacs_file)
     add_changelog(new_cpacs_file)
+
 
     tigl2 = tiglwrapper.Tigl()
     tigl2.open(old_cpacs_file, "")
@@ -680,6 +594,7 @@ def main():
         new_cpacs_file.save(output_file)
     else:
         print(new_cpacs_file.exportDocumentAsString())
+
 
 
 if __name__ == "__main__":
