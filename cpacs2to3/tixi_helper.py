@@ -1,3 +1,4 @@
+import logging
 import os
 
 from tixi3.tixi3wrapper import Tixi3Exception
@@ -55,7 +56,7 @@ def fix_duplicate_uid(tixi_handle, uid):
 
     for uid_path, text_paths in uid_map.items():
         new_uid = uidGenerator.create(tixi_handle, uid_path)
-        print ("Renaming duplicate uid='%s' to '%s'" % (uid, new_uid))
+        logging.info ("Renaming duplicate uid='%s' to '%s'" % (uid, new_uid))
         tixi_handle.removeAttribute(uid_path, "uID")
         tixi_handle.addTextAttribute(uid_path, "uID", new_uid)
         for text_path in text_paths:
@@ -74,10 +75,10 @@ def fix_invalid_uids(empty_uids_paths, duplicate_uids, tixi_handle):
 
     for elem in empty_uids_paths:
         new_uid = uidGenerator.create(tixi_handle, elem)
-        print('Replacing empty uid with "%s"' % new_uid)
+        logging.info('Replacing empty uid with "%s"' % new_uid)
         tixi_handle.removeAttribute(elem, "uID")
         tixi_handle.addTextAttribute(elem, "uID", new_uid)
-    print("There are duplicate uIDs in the data set!")
+    logging.warning("There are duplicate uIDs in the data set!")
     for uid in duplicate_uids:
         fix_duplicate_uid(tixi_handle, uid)
 

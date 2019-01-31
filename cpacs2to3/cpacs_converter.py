@@ -9,7 +9,7 @@ Still to be implemented:
  - Geometry of wing structure
 """
 
-from __future__ import print_function
+import logging
 
 import argparse
 import math
@@ -41,7 +41,7 @@ def register_uids(tixi3_handle):
     invalid_uids = []
     empty_uid_paths = []
 
-    print ("Registering all uIDs")
+    logging.info ("Registering all uIDs")
     paths = tixihelper.resolve_xpaths(tixi3_handle, "/cpacs/vehicles//*[@uID]")
     for elem in paths:
         uid = tixi3_handle.getTextAttribute(elem, "uID")
@@ -92,7 +92,7 @@ def add_uid(tixi3, xpath, uid):
 
 
 def add_missing_uids(tixi3):
-    print("Add missing uIDs")
+    logging.info("Add missing uIDs")
     paths = tixihelper.resolve_xpaths(tixi3, "//transformation")
     for path in paths:
         add_uid(tixi3, path, uidGenerator.create(tixi3, path))
@@ -152,7 +152,7 @@ def add_cpacs_transformation_node(tixi3, element_path):
 
     transformation_path = element_path + "/transformation"
     if tixi3.checkElement(transformation_path) is False:
-        print ("Adding transformation node to %s" % element_path)
+        logging.info ("Adding transformation node to %s" % element_path)
 
         def add_trans_sub_node(node_name, x, y, z):
             node_path = transformation_path + "/" + node_name
@@ -217,7 +217,7 @@ def convertElementUidToEtaAndUid(tixi3, xpath, elementName):
             eta = 0.0
             uid = tixi3.getTextAttribute(wingSegments[0], 'uID')
         else:
-            print ('Failed to find a wing segment referencing the section element with uid' + elementUid + '. Manual correction is necessary')
+            logging.warning ('Failed to find a wing segment referencing the section element with uid' + elementUid + '. Manual correction is necessary')
             eta = 0.0
             uid = 'TODO'
     
@@ -236,13 +236,13 @@ def getInnerAndOuterScale(tigl3_h, wingUid, segmentUid):
     try:
         wing = config.get_wing(wingUid)
     except:
-        print("Could not find a wing with uid {} in getInnerAndOuterScale.".format(wingUid))
+        logging.warning("Could not find a wing with uid {} in getInnerAndOuterScale.".format(wingUid))
         return None
 
     try:
         segment = wing.get_segment(segmentUid)
     except:
-        print("Could not find a segment with uid {} in getInnerAndOuterScale.".format(wingUid))
+        logging.warning("Could not find a segment with uid {} in getInnerAndOuterScale.".format(wingUid))
         return None
 
     wingTransform = wing.get_transformation_matrix()
@@ -313,7 +313,7 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, n
         # CAUTION There is no user-defined x-axis in CPACS2 guide curves. We have to make a reasonable guess
         x = [0., 0., 1.]
     else:
-        print("Guide Curve Conversion is only implemented for fuselage and wing guide curves!")
+        logging.error("Guide Curve Conversion is only implemented for fuselage and wing guide curves!")
         return None
 
     px, py, pz = tigl2.getGuideCurvePoints(guideCurveUid, nProfilePoints+2)
@@ -330,7 +330,7 @@ def reverseEngineerGuideCurveProfilePoints(tixi2, tigl2, tigl3, guideCurveUid, n
 
     znorm = np.linalg.norm(z)
     if abs(znorm) < 1e-10:
-        print("Error during guide curve profile point calculation: The last point and the first point seem to coincide!")
+        logging.error("Error during guide curve profile point calculation: The last point and the first point seem to coincide!")
         return
 
     z = z / znorm
@@ -361,7 +361,7 @@ def convertGuideCurvePoints(tixi3, tixi2, tigl2, tigl3, keepUnusedProfiles = Fal
     if not tixi3.checkElement(xpath):
         return
 
-    print("Adapting guide curve profiles to CPACS 3 definition")
+    logging.info("Adapting guide curve profiles to CPACS 3 definition")
 
     # rename guideCurveProfiles to guideCurves
     if tixi3.checkElement("cpacs/vehicles/profiles/guideCurveProfiles"):
@@ -380,7 +380,7 @@ def convertGuideCurvePoints(tixi3, tixi2, tigl2, tigl3, keepUnusedProfiles = Fal
             # The guide curve profile appears to be unused
             if not keepUnusedProfiles:
                 # If we don't need it, let's do some clean up
-                print("   Removing unused guide curve profile {}".format(profileUid))
+                logging.info("   Removing unused guide curve profile {}".format(profileUid))
                 tixi3.removeElement( xpathProfile )
                 idx-=1
                 nProfiles-=1
@@ -539,6 +539,8 @@ def get_new_cs_coordinates(tigl2, tigl3, compseg_uid, eta_old, xsi_old):
 
 
 def main():
+    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
+
     parser = argparse.ArgumentParser(description='Converts a CPACS file from Version 2 to Version 3.')
     parser.add_argument('input_file', help='Input CPACS 2 file')
     parser.add_argument('-o', metavar='output_file', help='Name of the output file.')
@@ -556,13 +558,13 @@ def main():
 
     new_cpacs_file.open(filename)
     new_cpacs_file.setCacheEnabled(1)
-    # new_cpacs_file.usePrettyPrint(1)
+    # new_cpacs_file.usePrettylogging.info(1)
 
     invalid_uids, empty_uids = register_uids(new_cpacs_file)
     if len(invalid_uids) + len(empty_uids) > 0  and do_fix_uids:
         tixihelper.fix_invalid_uids(empty_uids, invalid_uids, new_cpacs_file)
 
-        print("A fixed cpacs2 file will be stored to '%s'" % (filename + ".fixed"))
+        logging.info("A fixed cpacs2 file will be stored to '%s'" % (filename + ".fixed"))
         fixed_cpacs_str = new_cpacs_file.exportDocumentAsString()
         with open(filename + ".fixed", "w") as text_file:
             text_file.write(fixed_cpacs_str)
@@ -588,12 +590,12 @@ def main():
 
     convertGuideCurvePoints(new_cpacs_file, old_cpacs_file, tigl2, tigl3)
 
-    print ("Done")
+    logging.info ("Done")
 
     if output_file is not None:
         new_cpacs_file.save(output_file)
     else:
-        print(new_cpacs_file.exportDocumentAsString())
+        logging.info(new_cpacs_file.exportDocumentAsString())
 
 
 
