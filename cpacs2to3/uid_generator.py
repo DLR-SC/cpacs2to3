@@ -1,19 +1,12 @@
+from . import tixi_helper
+
 class UIDGenerator(object):
     def __init__(self):
         self.counter = 0
         self.uids = set()
 
     def create(self, tixi_handle, current_path):
-        parent, elem = self.get_parent_child_path(current_path)
-        while not tixi_handle.checkAttribute(parent, "uID"):
-            parent, _ = self.get_parent_child_path(parent)
-            if parent == '':
-                break
-
-        if parent != '':
-            parent_uid = tixi_handle.getTextAttribute(parent, "uID")
-        else:
-            parent_uid = ''
+        parent_uid, elem = tixi_helper.next_parent_uid(tixi_handle, current_path)
 
         new_uid = self.make_unique_uid("%s_%s" % (parent_uid, elem))
         self.register(new_uid)
@@ -43,20 +36,6 @@ class UIDGenerator(object):
     def uid_exists(self, uid):
         return uid in self.uids
 
-    @staticmethod
-    def get_parent_child_path(child_path):
-        while child_path[-1] == '/':
-            child_path = child_path[0:-1]
-        pos = child_path.rindex('/')
-
-        parent = child_path[0:pos]
-        child = child_path[pos + 1:]
-
-        pos = child.rfind("[")
-        if pos > 0:
-            child = child[0:pos]
-
-        return parent, child
 
 
 uidGenerator = UIDGenerator()
