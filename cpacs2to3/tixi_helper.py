@@ -80,7 +80,9 @@ def fix_invalid_uids(empty_uids_paths, duplicate_uids, tixi_handle):
         logging.info('Replacing empty uid with "%s"' % new_uid)
         tixi_handle.removeAttribute(elem, "uID")
         tixi_handle.addTextAttribute(elem, "uID", new_uid)
-    logging.warning("There are duplicate uIDs in the data set!")
+
+    if len(duplicate_uids) > 0:
+        logging.warning("There are duplicate uIDs in the data set!")
     for uid in duplicate_uids:
         fix_duplicate_uid(tixi_handle, uid)
 
