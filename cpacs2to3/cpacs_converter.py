@@ -257,16 +257,21 @@ def convert_eta_xsi_iso_lines(tixi3):
             uid = get_parent_compseg_or_ted_uid(tixi3, path)
 
             # get existing eta/xsi value
-            value = tixi3.getDoubleElement(path)
+            value_str = tixi3.getTextElement(path)
+            try:
+                value = float(value_str)
 
-            # recreate element to make sure it's empty and properly formatted
-            index = element_index(tixi3, path)
-            tixi3.removeElement(path)
-            tixi3.createElementAtIndex(parent_path(path), element_name(path), index)
+                # recreate element to make sure it's empty and properly formatted
+                index = element_index(tixi3, path)
+                tixi3.removeElement(path)
+                tixi3.createElementAtIndex(parent_path(path), element_name(path), index)
 
-            # add sub elements for eta/xsi iso line
-            tixi3.addDoubleElement(path, elementName, value, '%g')
-            tixi3.addTextElement(path, 'referenceUID', uid)
+                # add sub elements for eta/xsi iso line
+                tixi3.addDoubleElement(path, elementName, value, '%g')
+                tixi3.addTextElement(path, 'referenceUID', uid)
+            except ValueError:
+                # don't convert values that are already converted
+                pass
 
     etaXpath = (
         '//track/eta|' +
