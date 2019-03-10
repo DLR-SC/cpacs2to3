@@ -20,33 +20,28 @@ from tixi3.tixi3wrapper import Tixi3Exception
 import cpacs2to3.tixi_helper as tixihelper
 from cpacs2to3.convert_coordinates import convert_geometry
 from cpacs2to3.tixi_helper import parent_path, element_name, element_index
-from cpacs2to3.uid_generator import uidGenerator
+from cpacs2to3.uid_generator import uid_manager
 
 
-def register_uids(tixi3_handle):
-    """
-    Gets all elements with uiDs and registers them
-    :param tixi3_handle:
-    """
+def bump_version(vers, level):
+    import semver
+    import re
 
-    invalid_uids = []
-    empty_uid_paths = []
+    # allow also not semver compatible versions
+    if re.match(semver._REGEX, vers):
+        pass
+    elif re.match("[0-9]+\.[0-9]+", vers):
+        vers = vers + ".0"
+    elif re.match("[0-9]+", vers):
+        vers = vers + ".0.0"
 
-    logging.info ("Registering all uIDs")
-    paths = tixihelper.resolve_xpaths(tixi3_handle, "/cpacs/vehicles//*[@uID]")
-    for elem in paths:
-        uid = tixi3_handle.getTextAttribute(elem, "uID")
-        if uid == "":
-            empty_uid_paths.append(elem)
-        else:
-            try:
-                uidGenerator.register(uid)
-            except RuntimeError:
-                invalid_uids.append(uid)
-
-    invalid_uids = list(sorted(set(invalid_uids)))
-    return invalid_uids, empty_uid_paths
-
+    if level == "major":
+        v = semver.bump_major(vers)
+    elif level == "minor":
+        v = semver.bump_minor(vers)
+    else:
+        v = semver.bump_patch(vers)
+    return v
 
 def change_cpacs_version(tixi3_handle):
     """
@@ -57,21 +52,31 @@ def change_cpacs_version(tixi3_handle):
     tixi3_handle.updateTextElement("/cpacs/header/cpacsVersion", "3.0")
 
 
-def add_changelog(tixi3_handle):
+def add_changelog(tixi3_handle, text):
     """
     Adds a changelog entry to the cpacs file
     :param tixi3_handle: TiXI 3 handle
+    :param text: text for the changelog
     """
     if not tixi3_handle.checkElement("/cpacs/header/updates"):
         tixi3_handle.createElement("/cpacs/header", "updates")
 
+    current_version = "1.0"
+    if tixi3_handle.checkElement("/cpacs/header/version"):
+        current_version = tixi3_handle.getTextElement("/cpacs/header/version")
+    else:
+        tixi3_handle.addTextElement("/cpacs/header/version", current_version)
+
+    next_version = bump_version(current_version, "minor")
+    tixi3_handle.updateTextElement("/cpacs/header/version", next_version)
+
     tixi3_handle.createElement("/cpacs/header/updates", "update")
     n_updates = tixi3_handle.getNamedChildrenCount("/cpacs/header/updates", "update")
     xpath = "/cpacs/header/updates/update[%d]" % n_updates
-    tixi3_handle.addTextElement(xpath, "modification", "Converted to cpacs 3.0 using cpacs2to3")
+    tixi3_handle.addTextElement(xpath, "modification", text)
     tixi3_handle.addTextElement(xpath, "creator", "cpacs2to3")
     tixi3_handle.addTextElement(xpath, "timestamp", datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    tixi3_handle.addTextElement(xpath, "version", "ver1")
+    tixi3_handle.addTextElement(xpath, "version", next_version)
     tixi3_handle.addTextElement(xpath, "cpacsVersion", "3.0")
 
 
@@ -98,10 +103,10 @@ def add_missing_uids(tixi3):
     logging.info("Add missing uIDs")
     paths = tixihelper.resolve_xpaths(tixi3, "//transformation")
     for path in paths:
-        add_uid(tixi3, path, uidGenerator.create(tixi3, path))
-        add_uid(tixi3, path + "/rotation", uidGenerator.create(tixi3, path + "/rotation"))
-        add_uid(tixi3, path + "/scaling", uidGenerator.create(tixi3, path + "/scaling"))
-        add_uid(tixi3, path + "/translation", uidGenerator.create(tixi3, path + "/translation"))
+        add_uid(tixi3, path, uid_manager.create_uid(tixi3, path))
+        add_uid(tixi3, path + "/rotation", uid_manager.create_uid(tixi3, path + "/rotation"))
+        add_uid(tixi3, path + "/scaling", uid_manager.create_uid(tixi3, path + "/scaling"))
+        add_uid(tixi3, path + "/translation", uid_manager.create_uid(tixi3, path + "/translation"))
 
     def genMassPaths(path):
         return (
@@ -140,7 +145,7 @@ def add_missing_uids(tixi3):
     try:
         paths = tixihelper.resolve_xpaths(tixi3, xpath)
         for path in paths:
-            add_uid(tixi3, path, uidGenerator.create(tixi3, path))
+            add_uid(tixi3, path, uid_manager.create_uid(tixi3, path))
     except Tixi3Exception:
         pass
 
@@ -160,13 +165,13 @@ def add_cpacs_transformation_node(tixi3, element_path):
         def add_trans_sub_node(node_name, x, y, z):
             node_path = transformation_path + "/" + node_name
             tixi3.createElement(transformation_path, node_name)
-            add_uid(tixi3, node_path, uidGenerator.create(tixi3, node_path))
+            add_uid(tixi3, node_path, uid_manager.create_uid(tixi3, node_path))
             tixi3.addDoubleElement(node_path, "x", x, "%g")
-            tixi3.addDoubleElement(node_path, "y", z, "%g")
-            tixi3.addDoubleElement(node_path, "z", x, "%g")
+            tixi3.addDoubleElement(node_path, "y", y, "%g")
+            tixi3.addDoubleElement(node_path, "z", z, "%g")
 
         tixi3.createElement(element_path, "transformation")
-        add_uid(tixi3, transformation_path, uidGenerator.create(tixi3, transformation_path))
+        add_uid(tixi3, transformation_path, uid_manager.create_uid(tixi3, transformation_path))
 
         add_trans_sub_node("scaling", 1., 1., 1.)
         add_trans_sub_node("rotation", 0., 0., 0.)
@@ -386,7 +391,7 @@ def convert_cpacs_xml(tixi_handle):
     perform structural changes on XML
     """
     change_cpacs_version(tixi_handle)
-    add_changelog(tixi_handle)
+    add_changelog(tixi_handle, "Converted to cpacs 3.0 using cpacs2to3")
     # add new nodes / uids
     add_missing_uids(tixi_handle)
     add_transformation_nodes(tixi_handle)
@@ -416,12 +421,13 @@ def main():
 
     new_cpacs_file.open(filename)
     new_cpacs_file.setCacheEnabled(1)
+    new_cpacs_file.usePrettyPrint(1)
 
     # get all uids
-    invalid_uids, empty_uids = register_uids(new_cpacs_file)
+    uid_manager.register_all_uids(new_cpacs_file)
     if do_fix_uids:
-        if len(invalid_uids) + len(empty_uids) > 0:
-            tixihelper.fix_invalid_uids(empty_uids, invalid_uids, new_cpacs_file)
+        if len(uid_manager.invalid_uids) + len(uid_manager.empty_uid_paths) > 0:
+            uid_manager.fix_invalid_uids(new_cpacs_file)
 
         fix_empty_elements(new_cpacs_file)
 

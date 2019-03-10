@@ -5,9 +5,9 @@ such as missing uids, duplicate uids or empty elements
 
 import logging
 from tixi3 import tixi3wrapper
-import cpacs2to3.tixi_helper as tixihelper
 import argparse
-from cpacs2to3.cpacs_converter import fix_empty_elements, register_uids, add_missing_uids
+from cpacs2to3.cpacs_converter import fix_empty_elements, add_missing_uids, add_changelog
+from cpacs2to3.uid_generator import uid_manager
 
 
 def main():
@@ -28,12 +28,15 @@ def main():
 
     cpacs_file.open(filename)
     cpacs_file.setCacheEnabled(1)
+    cpacs_file.usePrettyPrint(1)
 
-    invalid_uids, empty_uids = register_uids(cpacs_file)
+    uid_manager.register_all_uids(cpacs_file)
+    uid_manager.fix_invalid_uids(cpacs_file)
 
-    tixihelper.fix_invalid_uids(empty_uids, invalid_uids, cpacs_file)
     fix_empty_elements(cpacs_file)
     add_missing_uids(cpacs_file)
+
+    add_changelog(cpacs_file, "Fixed cpacs errors")
 
     logging.info ("Done")
 
