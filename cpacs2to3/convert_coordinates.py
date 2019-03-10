@@ -31,11 +31,11 @@ def convert_eta_xsi_values(tixi3, tigl2, tigl3):
     :param tigl3: TiGL 3 handle
     """
 
-    csUids = [tixi3.getTextAttribute(xpath, 'uID') for xpath in tixihelper.resolve_xpaths(tixi3, '//componentSegment')]
+    csUids = [tixi3.getTextAttribute(xpath, 'uID') for xpath in tixihelper.resolve_xpaths(tixi3, '//componentSegment[@uID]')]
     wingSegmentUids = [tixi3.getTextAttribute(xpath, 'uID') for xpath in
-                       tixihelper.resolve_xpaths(tixi3, '//wing/segments/segment')]
+                       tixihelper.resolve_xpaths(tixi3, '//wing/segments/segment[@uID]')]
     tedUids = [tixi3.getTextAttribute(xpath, 'uID') for xpath in
-               tixihelper.resolve_xpaths(tixi3, '//trailingEdgeDevice')]
+               tixihelper.resolve_xpaths(tixi3, '//trailingEdgeDevice[@uID]')]
 
     etaXpath = (
         '//track/eta|' +
