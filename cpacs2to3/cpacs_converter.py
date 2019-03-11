@@ -92,11 +92,16 @@ def fix_empty_elements(tixi_handle):
     Some text elements may not be empty but are optional. If they are present, remove them
     """
 
+    file_has_changed = False
+
     xpath = "//description|//name"
     paths = tixihelper.resolve_xpaths(tixi_handle, xpath)
     for path in paths:
         if tixi_handle.getTextElement(path) == "":
             tixi_handle.removeElement(path)
+            file_has_changed = True
+
+    return file_has_changed
 
 
 def add_missing_uids(tixi3):
@@ -426,14 +431,13 @@ def main():
     # get all uids
     uid_manager.register_all_uids(new_cpacs_file)
     if do_fix_uids:
-        if len(uid_manager.invalid_uids) + len(uid_manager.empty_uid_paths) > 0:
-            uid_manager.fix_invalid_uids(new_cpacs_file)
+        file_has_changed = uid_manager.fix_invalid_uids(new_cpacs_file)
+        file_has_changed = file_has_changed or fix_empty_elements(new_cpacs_file)
 
-        fix_empty_elements(new_cpacs_file)
-
-        logging.info("A fixed cpacs2 file will be stored to '%s'" % (filename + ".fixed"))
-        with open(filename + ".fixed", "w") as text_file:
-            text_file.write(new_cpacs_file.exportDocumentAsString())
+        if file_has_changed:
+            logging.info("A fixed cpacs2 file will be stored to '%s'" % (filename + ".fixed"))
+            with open(filename + ".fixed", "w") as text_file:
+                text_file.write(new_cpacs_file.exportDocumentAsString())
 
     old_cpacs_file.openString(new_cpacs_file.exportDocumentAsString())
 

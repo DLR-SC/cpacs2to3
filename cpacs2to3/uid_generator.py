@@ -122,5 +122,10 @@ class UIDManager(object):
         for uid in self.invalid_uids:
             self.__fix_duplicate_uid(tixi_handle, uid)
 
+        if len(self.invalid_uids) > 0 or len(self.empty_uid_paths) > 0:
+            return True
+        else:
+            return False
+
 
 uid_manager = UIDManager()
