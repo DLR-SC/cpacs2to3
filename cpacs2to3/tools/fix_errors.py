@@ -94,7 +94,7 @@ def main():
         changelog += "Fixed order of wing profiles. "
 
     if changelog != "":
-        add_changelog(cpacs_file, changelog.strip())
+        add_changelog(cpacs_file, changelog.strip(), "fix_errors.py")
 
     logging.info ("Done")
 

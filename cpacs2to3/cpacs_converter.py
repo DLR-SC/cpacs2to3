@@ -52,7 +52,7 @@ def change_cpacs_version(tixi3_handle):
     tixi3_handle.updateTextElement("/cpacs/header/cpacsVersion", "3.0")
 
 
-def add_changelog(tixi3_handle, text):
+def add_changelog(tixi3_handle, text, creator="cpacs2to3"):
     """
     Adds a changelog entry to the cpacs file
     :param tixi3_handle: TiXI 3 handle
@@ -74,7 +74,7 @@ def add_changelog(tixi3_handle, text):
     n_updates = tixi3_handle.getNamedChildrenCount("/cpacs/header/updates", "update")
     xpath = "/cpacs/header/updates/update[%d]" % n_updates
     tixi3_handle.addTextElement(xpath, "modification", text)
-    tixi3_handle.addTextElement(xpath, "creator", "cpacs2to3")
+    tixi3_handle.addTextElement(xpath, "creator", creator)
     tixi3_handle.addTextElement(xpath, "timestamp", datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
     tixi3_handle.addTextElement(xpath, "version", next_version)
     tixi3_handle.addTextElement(xpath, "cpacsVersion", "3.0")
