@@ -25,6 +25,7 @@ requirements:
     - tixi >=2.2.4
     - tixi3 >=3.0.3
     - numpy
+    - semver
 
 test:
   imports:
