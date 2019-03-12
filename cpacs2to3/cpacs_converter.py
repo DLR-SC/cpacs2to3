@@ -82,9 +82,12 @@ def add_changelog(tixi3_handle, text):
 
 def add_uid(tixi3, xpath, uid):
     if not tixi3.checkElement(xpath):
-        return
+        return False
     if not tixi3.checkAttribute(xpath, "uID"):
         tixi3.addTextAttribute(xpath, "uID", uid)
+        return True
+    else:
+        return False
 
 
 def fix_empty_elements(tixi_handle):
@@ -111,11 +114,10 @@ def add_missing_uids(tixi3):
     logging.info("Add missing uIDs")
     paths = tixihelper.resolve_xpaths(tixi3, "//transformation")
     for path in paths:
-        add_uid(tixi3, path, uid_manager.create_uid(tixi3, path))
-        add_uid(tixi3, path + "/rotation", uid_manager.create_uid(tixi3, path + "/rotation"))
-        add_uid(tixi3, path + "/scaling", uid_manager.create_uid(tixi3, path + "/scaling"))
-        add_uid(tixi3, path + "/translation", uid_manager.create_uid(tixi3, path + "/translation"))
-        has_changed = True
+        has_changed = add_uid(tixi3, path, uid_manager.create_uid(tixi3, path)) or has_changed
+        has_changed = add_uid(tixi3, path + "/rotation", uid_manager.create_uid(tixi3, path + "/rotation")) or has_changed
+        has_changed = add_uid(tixi3, path + "/scaling", uid_manager.create_uid(tixi3, path + "/scaling")) or has_changed
+        has_changed = add_uid(tixi3, path + "/translation", uid_manager.create_uid(tixi3, path + "/translation")) or has_changed
 
     def genMassPaths(path):
         return (
@@ -154,8 +156,7 @@ def add_missing_uids(tixi3):
     try:
         paths = tixihelper.resolve_xpaths(tixi3, xpath)
         for path in paths:
-            has_changed = True
-            add_uid(tixi3, path, uid_manager.create_uid(tixi3, path))
+            has_changed = add_uid(tixi3, path, uid_manager.create_uid(tixi3, path)) or has_changed
     except Tixi3Exception:
         pass
 
