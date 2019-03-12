@@ -52,7 +52,7 @@ class UIDManager(object):
         self.uids = set()
 
         logging.info("Registering all uIDs")
-        paths = tixi_helper.resolve_xpaths(tixi_handle, "/cpacs/vehicles//*[@uID]")
+        paths = tixi_helper.resolve_xpaths(tixi_handle, "/cpacs//*[@uID]")
         for elem in paths:
             uid = tixi_handle.getTextAttribute(elem, "uID")
             if uid == "":
