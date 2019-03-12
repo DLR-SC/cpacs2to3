@@ -105,6 +105,9 @@ def fix_empty_elements(tixi_handle):
 
 
 def add_missing_uids(tixi3):
+
+    has_changed = False
+
     logging.info("Add missing uIDs")
     paths = tixihelper.resolve_xpaths(tixi3, "//transformation")
     for path in paths:
@@ -112,6 +115,7 @@ def add_missing_uids(tixi3):
         add_uid(tixi3, path + "/rotation", uid_manager.create_uid(tixi3, path + "/rotation"))
         add_uid(tixi3, path + "/scaling", uid_manager.create_uid(tixi3, path + "/scaling"))
         add_uid(tixi3, path + "/translation", uid_manager.create_uid(tixi3, path + "/translation"))
+        has_changed = True
 
     def genMassPaths(path):
         return (
@@ -150,9 +154,12 @@ def add_missing_uids(tixi3):
     try:
         paths = tixihelper.resolve_xpaths(tixi3, xpath)
         for path in paths:
+            has_changed = True
             add_uid(tixi3, path, uid_manager.create_uid(tixi3, path))
     except Tixi3Exception:
         pass
+
+    return has_changed
 
 
 def add_cpacs_transformation_node(tixi3, element_path):
