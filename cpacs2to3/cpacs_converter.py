@@ -139,6 +139,10 @@ def add_missing_uids(tixi3):
         '//stringerPosition/alignment|' +
         '//framePosition|' +
         '//framePosition/alignment|' +
+        '//cargoCrossBeam/alignment|' +
+        '//cargoCrossBeamStrut/alignment|' +
+        '//longFloorBeamPosition|' +
+        '//longFloorBeamPosition/alignment|' +
         '//trailingEdgeDevice/path/steps/step/innerHingeTranslation|' +
         '//trailingEdgeDevice/path/steps/step/outerHingeTranslation|' +
         '//trailingEdgeDevice/tracks/track|' +
@@ -147,6 +151,8 @@ def add_missing_uids(tixi3):
         '//globalBeamProperties/beamShearCenter|' +
         '//globalBeamProperties/beamStiffness|' +
         '//sparCell|' +
+        '//pressureBulkhead|' +
+        '//engine/nacelle|' +
         genMassPaths('mTOM') + '|' +
         genMassPaths('mZFM') + '|' +
         genMassPaths('mMLM') + '|' +
