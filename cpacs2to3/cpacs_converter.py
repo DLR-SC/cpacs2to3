@@ -153,6 +153,10 @@ def add_missing_uids(tixi3):
         '//sparCell|' +
         '//pressureBulkhead|' +
         '//engine/nacelle|' +
+        '//paxCrossBeams/alignment' +
+        '//paxCrossBeamStruts/alignment' +
+        '//fuselageNodalLoad' +
+        '//wingNodalLoad' +
         genMassPaths('mTOM') + '|' +
         genMassPaths('mZFM') + '|' +
         genMassPaths('mMLM') + '|' +
