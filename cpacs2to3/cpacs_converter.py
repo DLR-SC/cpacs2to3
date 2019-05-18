@@ -420,6 +420,9 @@ def convert_ribs_positions(tixi3):
 
             if tixi3.checkElement(path + '/' + element_node_name):
                 elementUID = tixi3.getTextElement(path + '/' + element_node_name)
+                logging.warning("Rib '" + path + "' placed into section  element " + elementUID  + " "
+                                "will be converted into eta/xsi coordinates. "
+                                "In case of a rib rotation, this conversion will result in a different rib.")
 
                 uid, eta = get_segment_etauid_from_section_element(tixi3, elementUID)
 
