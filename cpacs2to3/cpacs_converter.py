@@ -309,11 +309,6 @@ def convert_eta_xsi_iso_lines(tixi3):
         '//positioningOuterBorder/eta1|' +
         '//positioningInnerBorder/eta2|' +
         '//positioningOuterBorder/eta2|' +
-        # TODO: uncomment when TIGL has implemented new RibsPositioning
-        #'//ribsPositioning/etaStart|' +
-        #'//ribsPositioning/etaEnd|' +
-        '//ribExplicitPositioning/etaStart|' +
-        '//ribExplicitPositioning/etaEnd|' +
         '//innerBorder/etaLE|' +
         '//outerBorder/etaLE|' +
         '//innerBorder/etaTE|' +
@@ -336,13 +331,6 @@ def convert_eta_xsi_iso_lines(tixi3):
         '//position/xsiInside'
     )
     convertIsoLineCoords(tixi3, xsiXpath, 'xsi')
-    
-    # convert elementUIDs
-    # TODO: Uncomment, when TIGL supports new ribs positioning structure
-    #for path in tixihelper.resolve_xpaths(tixi3, '//ribsPositioning/elementStartUID|'):
-    #    convertElementUidToEtaAndUid(tixi3, path, 'etaStart')
-    #for path in tixihelper.resolve_xpaths(tixi3, '//ribsPositioning/elementEndUID|'):
-    #    convertElementUidToEtaAndUid(tixi3, path, 'etaEnd')
 
 
 def convert_eta_xsi_rel_height_points(tixi3):
@@ -352,6 +340,7 @@ def convert_eta_xsi_rel_height_points(tixi3):
     """
 
     convert_spar_positions(tixi3)
+    convert_ribs_positions(tixi3)
     convert_non_explicit_stringer(tixi3)
 
 
@@ -408,6 +397,61 @@ def convert_spar_positions(tixi3):
             # in case of elementUID, find wing segment which references the element and convert to eta
             convert_element_uid_to_eta_and_uid(tixi3, path + '/elementUID', "sparPositionEtaXsi", xsi)
 
+
+def convert_ribs_positions(tixi3):
+    def replace_eta_with_curve_point(path, eta_node_name, new_node_name, reference_uid):
+        if tixi3.checkElement(path + "/" + eta_node_name):
+            eta_str = tixi3.getTextElement(path + '/' + eta_node_name)
+
+            tixi3.createElement(path, new_node_name)
+            tixi3.addTextElement(path + '/' + new_node_name, 'eta', eta_str)
+            tixi3.addTextElement(path + '/' + new_node_name, 'referenceUID', reference_uid)
+
+            tixi3.swapElements(path + '/' + eta_node_name, path + '/' + new_node_name)
+            tixi3.removeElement(path + '/' + eta_node_name)
+
+    for path in tixihelper.resolve_xpaths(tixi3, '//ribsPositioning'):
+        rib_reference = tixi3.getTextElement(path + '/ribReference')
+
+        replace_eta_with_curve_point(path, "etaStart", "startCurvePoint", rib_reference)
+        replace_eta_with_curve_point(path, "etaEnd", "endCurvePoint", rib_reference)
+
+        def replace_element_with_segment_coords(path, element_node_name, eta_xsi_point_name):
+
+            if tixi3.checkElement(path + '/' + element_node_name):
+                elementUID = tixi3.getTextElement(path + '/' + element_node_name)
+                logging.warning("Rib '" + path + "' placed into section  element " + elementUID  + " "
+                                "will be converted into eta/xsi coordinates. "
+                                "In case of a rib rotation, this conversion will result in a different rib.")
+
+                uid, eta = get_segment_etauid_from_section_element(tixi3, elementUID)
+
+                tixi3.createElement(path, eta_xsi_point_name)
+                tixi3.addTextElement(path + '/' + eta_xsi_point_name, 'eta', str(eta))
+                tixi3.addTextElement(path + '/' + eta_xsi_point_name, 'referenceUID', uid)
+                tixi3.addTextElement(path + '/' + eta_xsi_point_name, 'xsi', '0.0')
+
+                tixi3.swapElements(path + '/' + element_node_name, path + '/' + eta_xsi_point_name)
+                tixi3.removeElement(path + '/' + element_node_name)
+
+        replace_element_with_segment_coords(path, 'elementStartUID', 'startEtaXsiPoint')
+        replace_element_with_segment_coords(path, 'elementEndUID', 'endEtaXsiPoint')
+
+    # explicit rib positionings
+    for path in tixihelper.resolve_xpaths(tixi3, '//ribExplicitPositioning'):
+        start_reference = tixi3.getTextElement(path + '/startReference')
+        end_reference = tixi3.getTextElement(path + '/endReference')
+
+        replace_eta_with_curve_point(path, "etaStart", "startCurvePoint", start_reference)
+        replace_eta_with_curve_point(path, "etaEnd", "endCurvePoint", end_reference)
+
+        # add rib start / end nodes
+        tixi3.addTextElement(path, "ribStart", start_reference)
+        tixi3.addTextElement(path, "ribEnd", end_reference)
+
+        # remove the reference elements
+        tixi3.removeElement(path + '/startReference')
+        tixi3.removeElement(path + '/endReference')
 
 def convert_cpacs_xml(tixi_handle):
     """
