@@ -115,12 +115,11 @@ def fix_guide_curve_profile_element_names(tixi_handle):
     file_has_changed = False
 
     # rename guideCurves to guideCurveProfiles
-    xpath = "cpacs/vehicles/profiles/guideCurves"
-    if tixi_handle.checkElement(xpath):
+    if tixi_handle.checkElement("cpacs/vehicles/profiles/guideCurves"):
         tixi_handle.renameElement("cpacs/vehicles/profiles", "guideCurves", "guideCurveProfiles")
         file_has_changed = True
-        xpath = "cpacs/vehicles/profiles/guideCurveProfiles"
-
+    
+    xpath = "cpacs/vehicles/profiles/guideCurveProfiles"
     if not tixi_handle.checkElement(xpath):
         return file_has_changed
 
