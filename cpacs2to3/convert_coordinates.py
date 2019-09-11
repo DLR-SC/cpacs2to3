@@ -187,6 +187,8 @@ def find_guide_curve_using_profile(tixi2, profileUid):
     # check all guide curves of all fuselages and wings
     for type in ['fuselage', 'wing']:
         xpath = 'cpacs/vehicles/aircraft/model/{}s'.format(type)
+        if not tixi2.checkElement(xpath):
+            continue
         n = tixi2.getNumberOfChilds(xpath)
         for idx in range(0, n):
             xpathSegments = xpath + '/{}[{}]/segments'.format(type, idx + 1)
@@ -286,15 +288,16 @@ def compute_new_guide_curve_points(tixi2, tigl2, tigl3, guide_curve_uid, n_profi
 
 
 def convert_guide_curve_points(tixi3, tixi2, tigl2, tigl3, keep_unused_profiles=False):
+
+    # rename guideCurveProfiles to guideCurves
+    if tixi3.checkElement("cpacs/vehicles/profiles/guideCurveProfiles"):
+        tixi3.renameElement("cpacs/vehicles/profiles", "guideCurveProfiles", "guideCurves")
+
     xpath = "cpacs/vehicles/profiles/guideCurves"
     if not tixi3.checkElement(xpath):
         return
 
     logging.info("Adapting guide curve profiles to CPACS 3 definition")
-
-    # rename guideCurveProfiles to guideCurves
-    if tixi3.checkElement("cpacs/vehicles/profiles/guideCurveProfiles"):
-        tixi3.renameElement("cpacs/vehicles/profiles", "guideCurveProfiles", "guideCurves")
 
     nProfiles = tixi3.getNumberOfChilds(xpath)
     idx = 0
