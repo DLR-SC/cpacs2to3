@@ -106,6 +106,43 @@ def fix_empty_elements(tixi_handle):
 
     return file_has_changed
 
+def fix_guide_curve_profile_element_names(tixi_handle):
+    """
+    TiGL 2 uses a slight modification of the CPACS standard for guide curve profiles. If there are guide
+    curves present, the elements will adapt the names expected by TiGL 2
+    """
+
+    file_has_changed = False
+
+    # rename guideCurves to guideCurveProfiles
+    xpath = "cpacs/vehicles/profiles/guideCurves"
+    if tixi_handle.checkElement(xpath):
+        tixi_handle.renameElement("cpacs/vehicles/profiles", "guideCurves", "guideCurveProfiles")
+        file_has_changed = True
+        xpath = "cpacs/vehicles/profiles/guideCurveProfiles"
+
+    if not tixi_handle.checkElement(xpath):
+        return file_has_changed
+
+    # rename rX to x, rY to y, rZ to z
+    nProfiles = tixi_handle.getNumberOfChilds(xpath)
+    idx = 0
+    while idx < nProfiles:
+        idx += 1
+        xpathProfile = xpath + '/guideCurveProfile[{}]'.format(idx)
+
+        if tixi_handle.checkElement(xpathProfile + "/pointList/rX"):
+            tixi_handle.renameElement(xpathProfile + "/pointList", "rX", "x")
+            file_has_changed = True
+        if tixi_handle.checkElement(xpathProfile + "/pointList/rY"):
+            tixi_handle.renameElement(xpathProfile + "/pointList", "rY", "y")
+            file_has_changed = True
+        if tixi_handle.checkElement(xpathProfile + "/pointList/rZ"):
+            tixi_handle.renameElement(xpathProfile + "/pointList", "rZ", "z")
+            file_has_changed = True
+
+    return file_has_changed
+
 
 def add_missing_uids(tixi3):
 
@@ -494,7 +531,8 @@ def main():
     uid_manager.register_all_uids(new_cpacs_file)
     if do_fix_uids:
         file_has_changed = uid_manager.fix_invalid_uids(new_cpacs_file)
-        file_has_changed = file_has_changed or fix_empty_elements(new_cpacs_file)
+        file_has_changed = fix_empty_elements(new_cpacs_file) or file_has_changed
+        file_has_changed = fix_guide_curve_profile_element_names(new_cpacs_file) or file_has_changed
 
         if file_has_changed:
             logging.info("A fixed cpacs2 file will be stored to '%s'" % (filename + ".fixed"))

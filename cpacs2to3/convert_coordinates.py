@@ -246,7 +246,12 @@ def compute_new_guide_curve_points(tixi2, tigl2, tigl3, guide_curve_uid, n_profi
         logging.error("Guide Curve Conversion is only implemented for fuselage and wing guide curves!")
         return None
 
-    px, py, pz = tigl2.getGuideCurvePoints(guide_curve_uid, n_profile_points + 2)
+    try:
+        px, py, pz = tigl2.getGuideCurvePoints(guide_curve_uid, n_profile_points + 2)
+    except:
+        logging.error("Cannot parse CPACS 2 Guide Curves using TiGL. Try running cpacs2to3 with -f option.")
+        quit()
+        return None
 
     guideCurvePnts = np.zeros((3, n_profile_points + 2))
     guideCurvePnts[0, :] = px
@@ -262,7 +267,7 @@ def compute_new_guide_curve_points(tixi2, tigl2, tigl3, guide_curve_uid, n_profi
     if abs(znorm) < 1e-10:
         logging.error(
             "Error during guide curve profile point calculation: The last point and the first point seem to coincide!")
-        return
+        return None
 
     z = z / znorm
 
