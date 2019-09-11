@@ -117,11 +117,6 @@ def fix_guide_curve_profile_element_names(tixi_handle):
     if uses_cpacs3_guide_curve_definition(tixi_handle):
         return file_has_changed
 
-    # check if the CPACS 2 file already uses a CPACS 3 conform guide curves definition
-    curve_interp_xpath = "cpacs/header/cpacsVersionGuideCurveInterp"
-    if tixi_handle.checkElement(curve_interp_xpath) and tixi3.getTextElement(curve_interp_xpath) == "3":
-        return
-
     # rename guideCurves to guideCurveProfiles
     if tixi_handle.checkElement("cpacs/vehicles/profiles/guideCurves"):
         tixi_handle.renameElement("cpacs/vehicles/profiles", "guideCurves", "guideCurveProfiles")
