@@ -292,14 +292,24 @@ def compute_new_guide_curve_points(tixi2, tigl2, tigl3, guide_curve_uid, n_profi
     return rX, rY, rZ
 
 
+def uses_cpacs3_guide_curve_definition(tixi_handle):
+    # check if the CPACS 2 file already uses a CPACS 3 conform guide curves definition
+    curve_interp_xpath = "cpacs/header/cpacsVersionGuideCurveInterp"
+    return tixi_handle.checkElement(curve_interp_xpath) and tixi_handle.getTextElement(curve_interp_xpath) == "3"
+
 def convert_guide_curve_points(tixi3, tixi2, tigl2, tigl3, keep_unused_profiles=False):
 
     # rename guideCurveProfiles to guideCurves
     if tixi3.checkElement("cpacs/vehicles/profiles/guideCurveProfiles"):
         tixi3.renameElement("cpacs/vehicles/profiles", "guideCurveProfiles", "guideCurves")
 
+    # check if there are any guide curves to convert
     xpath = "cpacs/vehicles/profiles/guideCurves"
     if not tixi3.checkElement(xpath):
+        return
+
+    if uses_cpacs3_guide_curve_definition(tixi3):
+        tixi3.removeElement("cpacs/header/cpacsVersionGuideCurveInterp")
         return
 
     logging.info("Adapting guide curve profiles to CPACS 3 definition")

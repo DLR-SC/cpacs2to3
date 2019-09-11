@@ -18,7 +18,7 @@ from tixi3 import tixi3wrapper
 from tixi3.tixi3wrapper import Tixi3Exception
 
 import cpacs2to3.tixi_helper as tixihelper
-from cpacs2to3.convert_coordinates import convert_geometry
+from cpacs2to3.convert_coordinates import convert_geometry, uses_cpacs3_guide_curve_definition
 from cpacs2to3.tixi_helper import parent_path, element_name, element_index
 from cpacs2to3.uid_generator import uid_manager
 
@@ -114,11 +114,19 @@ def fix_guide_curve_profile_element_names(tixi_handle):
 
     file_has_changed = False
 
+    if uses_cpacs3_guide_curve_definition(tixi_handle):
+        return file_has_changed
+
+    # check if the CPACS 2 file already uses a CPACS 3 conform guide curves definition
+    curve_interp_xpath = "cpacs/header/cpacsVersionGuideCurveInterp"
+    if tixi_handle.checkElement(curve_interp_xpath) and tixi3.getTextElement(curve_interp_xpath) == "3":
+        return
+
     # rename guideCurves to guideCurveProfiles
     if tixi_handle.checkElement("cpacs/vehicles/profiles/guideCurves"):
         tixi_handle.renameElement("cpacs/vehicles/profiles", "guideCurves", "guideCurveProfiles")
         file_has_changed = True
-    
+
     xpath = "cpacs/vehicles/profiles/guideCurveProfiles"
     if not tixi_handle.checkElement(xpath):
         return file_has_changed
