@@ -18,7 +18,7 @@ from tixi3 import tixi3wrapper
 from tixi3.tixi3wrapper import Tixi3Exception
 
 import cpacs2to3.tixi_helper as tixihelper
-from cpacs2to3.convert_coordinates import convert_geometry, uses_cpacs3_guide_curve_definition
+from cpacs2to3.convert_coordinates import convert_geometry, do_convert_guide_curves
 from cpacs2to3.tixi_helper import parent_path, element_name, element_index
 from cpacs2to3.uid_generator import uid_manager
 
@@ -114,7 +114,7 @@ def fix_guide_curve_profile_element_names(tixi_handle):
 
     file_has_changed = False
 
-    if uses_cpacs3_guide_curve_definition(tixi_handle):
+    if not do_convert_guide_curves(tixi_handle):
         return file_has_changed
 
     # rename guideCurves to guideCurveProfiles
