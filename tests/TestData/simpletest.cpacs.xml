@@ -446,6 +446,13 @@
             					</cell>
             				</cells>
             			</upperShell>
+                  <lowerShell uID="WING_CS1_lowerShell1">
+                    <skin>
+                      <material>
+                        <materialUID>MySkinMat</materialUID>
+                      </material>
+                    </skin>
+                  </lowerShell>
             		</structure>
             	</componentSegment>
             </componentSegments>

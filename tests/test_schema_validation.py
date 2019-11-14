@@ -9,5 +9,9 @@ def test_valid_schema(simple_test):
                      simple_test.new_cpacs_file,
                      simple_test.old_cpacs_file)
 
+    # from tixi3.tixi3wrapper import Tixi3
+    # simple_test.new_cpacs_file = Tixi3()
+    # simple_test.new_cpacs_file.open("tests/TestData/simpletest.cpacs.tigl3.xml")
+
     schema = "tests/TestData/cpacs_3.0.0_schema.xsd"
     assert(ReturnCode.SUCCESS == simple_test.new_cpacs_file.schemaValidateFromFile(schema))
