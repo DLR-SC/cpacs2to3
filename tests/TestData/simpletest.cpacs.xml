@@ -427,6 +427,16 @@
             								<thickness>0.0</thickness>
             							</material>
             						</skin>
+                        <!--
+                        Add empty stringer to be at least CPACS 2.3.1 compliant
+                        (that is, make sure that validation against 2.3.1 works)
+                        -->
+                        <stringer>
+                          <stringerStructureUID>
+                          </stringerStructureUID>
+                          <pitch>0.0</pitch>
+                          <angle>0.0</angle>
+                        </stringer>
             						<positioningLeadingEdge>
             							<xsi1>0.8</xsi1>
             							<xsi2>0.8</xsi2>
@@ -487,6 +497,11 @@
   </vehicles>
   <toolspecific>
     <cFD>
+        <tool>
+          <name>SupercoolCFDTool</name>
+          <version>1.2.3</version>
+        </tool>
+        <aircraftModelUID>Cpacs2Test</aircraftModelUID>
         <farField>
             <type>halfCube</type>
             <referenceLength>10.0</referenceLength>
