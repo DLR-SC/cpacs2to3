@@ -1,4 +1,7 @@
 # cpacs2to3
+
+[![Build Status](https://travis-ci.com/DLR-SC/cpacs2to3.svg?branch=master)](https://travis-ci.com/DLR-SC/cpacs2to3)
+
 A tool to convert CPACS files from version 2 to CPACS 3.
 
 ## Quickstart
