@@ -1,0 +1,11 @@
+# ignore setuptools build directories
+build
+dist
+*.egg-info
+
+# ignore pycharm .idea directory
+.idea
+
+# python unix related stuff
+*__pycache__
+.pytest_cache
