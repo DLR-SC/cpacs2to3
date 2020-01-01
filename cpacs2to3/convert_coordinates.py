@@ -187,6 +187,8 @@ def find_guide_curve_using_profile(tixi2, profileUid):
     # check all guide curves of all fuselages and wings
     for type in ['fuselage', 'wing']:
         xpath = 'cpacs/vehicles/aircraft/model/{}s'.format(type)
+        if not tixi2.checkElement(xpath):
+            continue
         n = tixi2.getNumberOfChilds(xpath)
         for idx in range(0, n):
             xpathSegments = xpath + '/{}[{}]/segments'.format(type, idx + 1)
@@ -244,7 +246,12 @@ def compute_new_guide_curve_points(tixi2, tigl2, tigl3, guide_curve_uid, n_profi
         logging.error("Guide Curve Conversion is only implemented for fuselage and wing guide curves!")
         return None
 
-    px, py, pz = tigl2.getGuideCurvePoints(guide_curve_uid, n_profile_points + 2)
+    try:
+        px, py, pz = tigl2.getGuideCurvePoints(guide_curve_uid, n_profile_points + 2)
+    except:
+        logging.error("Cannot parse CPACS 2 Guide Curves using TiGL. Try running cpacs2to3 with -f option.")
+        quit()
+        return None
 
     guideCurvePnts = np.zeros((3, n_profile_points + 2))
     guideCurvePnts[0, :] = px
@@ -260,7 +267,7 @@ def compute_new_guide_curve_points(tixi2, tigl2, tigl3, guide_curve_uid, n_profi
     if abs(znorm) < 1e-10:
         logging.error(
             "Error during guide curve profile point calculation: The last point and the first point seem to coincide!")
-        return
+        return None
 
     z = z / znorm
 
@@ -285,16 +292,26 @@ def compute_new_guide_curve_points(tixi2, tigl2, tigl3, guide_curve_uid, n_profi
     return rX, rY, rZ
 
 
+def do_convert_guide_curves(tixi_handle):
+    # convert guide curves, if the curve_interp_xpath does not exist, or if if exists and is set to "1"
+    curve_interp_xpath = "cpacs/header/update/cpacs2to3/configuration/convertGuideCurves"
+    return (not tixi_handle.checkElement(curve_interp_xpath)) or tixi_handle.getTextElement(curve_interp_xpath) == "1"
+
 def convert_guide_curve_points(tixi3, tixi2, tigl2, tigl3, keep_unused_profiles=False):
+
+    if not do_convert_guide_curves(tixi3):
+        return
+
+    # rename guideCurveProfiles to guideCurves
+    if tixi3.checkElement("cpacs/vehicles/profiles/guideCurveProfiles"):
+        tixi3.renameElement("cpacs/vehicles/profiles", "guideCurveProfiles", "guideCurves")
+
+    # check if there are any guide curves to convert
     xpath = "cpacs/vehicles/profiles/guideCurves"
     if not tixi3.checkElement(xpath):
         return
 
     logging.info("Adapting guide curve profiles to CPACS 3 definition")
-
-    # rename guideCurveProfiles to guideCurves
-    if tixi3.checkElement("cpacs/vehicles/profiles/guideCurveProfiles"):
-        tixi3.renameElement("cpacs/vehicles/profiles", "guideCurveProfiles", "guideCurves")
 
     nProfiles = tixi3.getNumberOfChilds(xpath)
     idx = 0
