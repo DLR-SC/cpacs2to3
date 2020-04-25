@@ -21,6 +21,7 @@ import cpacs2to3.tixi_helper as tixihelper
 from cpacs2to3.convert_coordinates import convert_geometry, do_convert_guide_curves
 from cpacs2to3.tixi_helper import parent_path, element_name, element_index
 from cpacs2to3.uid_generator import uid_manager
+from cpacs2to3.graph import Graph, CPACS2Node, CPACS3Node
 
 
 def bump_version(vers, level):
@@ -52,7 +53,7 @@ def change_cpacs_version(tixi3_handle, version_str):
     tixi3_handle.updateTextElement("/cpacs/header/cpacsVersion", version_str)
 
 def get_cpacs_version(tixi3_handle):
-    tixi3_handle.getTextElement("/cpacs/header/cpacsVersion")
+    return tixi3_handle.getTextElement("/cpacs/header/cpacsVersion")
 
 def add_changelog(tixi3_handle, text, creator="cpacs2to3"):
     """
@@ -530,6 +531,100 @@ def upgrade_2_to_3(cpacs_handle, args):
     convert_geometry(filename, cpacs_handle, old_cpacs_file)
 
 
+def upgrade_3_to_31(cpacs_handle, args):
+    """
+    Upgrades a cpacs 3.0 dataset to 3.1
+    """
+
+    # rename relDeflection to controlParameter
+    xpath = (
+            '//leadingEdgeDevice/path/steps/step|' +
+            '//spoiler/path/steps/step|' +
+            '//trailingEdgeDevice/path/steps/step'
+    )
+    for path in tixihelper.resolve_xpaths(cpacs_handle, xpath):
+        if cpacs_handle.checkElement(path + '/relDeflection'):
+            cpacs_handle.renameElement(path, "relDeflection", "controlParameter")
+
+    xpath = (
+        '//fuselage/structure/walls/wallSegments/wallSegment'
+    )
+
+    for path in tixihelper.resolve_xpaths(cpacs_handle, xpath):
+        if cpacs_handle.checkElement(path + '/negativeExtrusion'):
+            cpacs_handle.renameElement(path, "negativeExtrusion", "doubleSidedExtrusion")
+
+    change_cpacs_version(cpacs_handle, "3.1")
+
+
+class VersionUpdater:
+    """
+    This class contains the logic to update a file to a specific cpacs version
+    """
+
+    def __init__(self):
+        self.version = []
+        self.update_graph = Graph()
+
+        self.define_versions()
+
+    def define_versions(self):
+        self.version.append(CPACS2Node())
+        self.version.append(CPACS3Node("3.0"))
+        self.version.append(CPACS3Node("3.1"))
+
+        self.__add_update_method("2.0", "3.0", upgrade_2_to_3)
+        self.__add_update_method("3.0", "3.1", upgrade_3_to_31)
+
+    def __add_update_method(self, vold_str, vnew_str, updater):
+        old_version_node = self.__get_version_node(vold_str)
+        new_version_node = self.__get_version_node(vnew_str)
+
+        self.update_graph.add_edge(old_version_node, new_version_node, update=updater)
+
+    def __get_version_node(self, version_str):
+        for v in self.version:
+            if v.matches(version_str):
+                return v
+
+        return None
+
+    def update(self, cpacs, args, target_version):
+        """
+        Updates the given cpacs file to given version
+
+        :param cpacs: cpacs file handle
+        :param args: command line args
+        :param target_version: target version to convert to
+        """
+
+        current_version = get_cpacs_version(cpacs)
+
+        version_old = self.__get_version_node(current_version)
+        version_new = self.__get_version_node(target_version)
+
+        if version_old is None:
+            raise RuntimeError("Cannot upgrade from version " + current_version)
+
+        if version_new is None or target_version != version_new.major_version:
+            raise RuntimeError("Cannot upgrade to version " + target_version)
+
+        path = self.update_graph.find_path(version_old, version_new)
+
+        if path is None:
+            raise RuntimeError("Don't know how to upgrade from %s to %s" % (current_version, target_version))
+
+        if len(path) == 1:
+            print("%s is compatible to %s. No actions required... " % (current_version, target_version))
+            return
+
+        logging.info("Upgrading CPACS %s file to CPACS version %s" % (current_version, target_version))
+
+        for i in range(len(path) - 1):
+            updater = self.update_graph.get_edge(path[i], path[i + 1])
+            updater.update(cpacs, args)
+
+
 def main():
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
 
@@ -537,6 +632,7 @@ def main():
     parser.add_argument('input_file', help='Input CPACS 2 file')
     parser.add_argument('-o', metavar='output_file', help='Name of the output file.')
     parser.add_argument('--fix-errors', '-f', help='try to fix empty and duplicate uids/elements',  action="store_true")
+    parser.add_argument('--target-version', '-v', default="3.1")
 
     args = parser.parse_args()
     filename = args.input_file
@@ -549,9 +645,10 @@ def main():
     # get all uids
     uid_manager.register_all_uids(cpacs_file)
 
-    upgrade_2_to_3(cpacs_file, args)
+    version_new = args.target_version
 
-    version_new = "3.0"
+    vu = VersionUpdater()
+    vu.update(cpacs_file, args, version_new)
 
     add_changelog(cpacs_file, "Converted to CPACS %s using cpacs2to3" % version_new)
 
@@ -563,7 +660,6 @@ def main():
         cpacs_file.save(output_file)
     else:
         logging.info(cpacs_file.exportDocumentAsString())
-
 
 
 if __name__ == "__main__":
