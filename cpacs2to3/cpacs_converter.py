@@ -80,7 +80,8 @@ def add_changelog(tixi3_handle, text, creator="cpacs2to3"):
     tixi3_handle.addTextElement(xpath, "creator", creator)
     tixi3_handle.addTextElement(xpath, "timestamp", datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
     tixi3_handle.addTextElement(xpath, "version", next_version)
-    tixi3_handle.addTextElement(xpath, "cpacsVersion", "3.0")
+    cpacs_version = get_cpacs_version(tixi3_handle)
+    tixi3_handle.addTextElement(xpath, "cpacsVersion", cpacs_version)
 
 
 def add_uid(tixi3, xpath, uid):
