@@ -43,14 +43,16 @@ def bump_version(vers, level):
         v = semver.bump_patch(vers)
     return v
 
-def change_cpacs_version(tixi3_handle):
+def change_cpacs_version(tixi3_handle, version_str):
     """
     Changes the CPACS Version of the file
 
     :param tixi3_handle: TiXI 3 handle
     """
-    tixi3_handle.updateTextElement("/cpacs/header/cpacsVersion", "3.0")
+    tixi3_handle.updateTextElement("/cpacs/header/cpacsVersion", version_str)
 
+def get_cpacs_version(tixi3_handle):
+    tixi3_handle.getTextElement("/cpacs/header/cpacsVersion")
 
 def add_changelog(tixi3_handle, text, creator="cpacs2to3"):
     """
@@ -496,8 +498,6 @@ def convert_cpacs_xml(tixi_handle):
     """
     perform structural changes on XML
     """
-    change_cpacs_version(tixi_handle)
-    add_changelog(tixi_handle, "Converted to cpacs 3.0 using cpacs2to3")
     # add new nodes / uids
     add_missing_uids(tixi_handle)
     add_transformation_nodes(tixi_handle)
@@ -506,6 +506,28 @@ def convert_cpacs_xml(tixi_handle):
     convert_eta_xsi_rel_height_points(tixi_handle)
 
 
+def upgrade_2_to_3(cpacs_handle, args):
+    filename = args.input_file
+
+    if args.fix_errors:
+        file_has_changed = uid_manager.fix_invalid_uids(cpacs_handle)
+        file_has_changed = fix_empty_elements(cpacs_handle) or file_has_changed
+        file_has_changed = fix_guide_curve_profile_element_names(cpacs_handle) or file_has_changed
+
+        if file_has_changed:
+            logging.info("A fixed cpacs2 file will be stored to '%s'" % (filename + ".fixed"))
+            with open(filename + ".fixed", "w") as text_file:
+                text_file.write(cpacs_handle.exportDocumentAsString())
+
+    # copy cpacs file into tixi 2 to make tigl2 happy
+    old_cpacs_file = tixiwrapper.Tixi()
+    old_cpacs_file.openString(cpacs_handle.exportDocumentAsString())
+
+    change_cpacs_version(cpacs_handle, "3.0")
+    convert_cpacs_xml(cpacs_handle)
+
+    # perform geometric conversions using tigl
+    convert_geometry(filename, cpacs_handle, old_cpacs_file)
 
 
 def main():
@@ -517,44 +539,30 @@ def main():
     parser.add_argument('--fix-errors', '-f', help='try to fix empty and duplicate uids/elements',  action="store_true")
 
     args = parser.parse_args()
-    do_fix_uids = args.fix_errors
-
-    old_cpacs_file = tixiwrapper.Tixi()
-    new_cpacs_file = tixi3wrapper.Tixi3()
-
     filename = args.input_file
-    output_file = args.o
 
-    new_cpacs_file.open(filename)
-    new_cpacs_file.setCacheEnabled(1)
-    new_cpacs_file.usePrettyPrint(1)
+    cpacs_file = tixi3wrapper.Tixi3()
+    cpacs_file.open(filename)
+    cpacs_file.setCacheEnabled(1)
+    cpacs_file.usePrettyPrint(1)
 
     # get all uids
-    uid_manager.register_all_uids(new_cpacs_file)
-    if do_fix_uids:
-        file_has_changed = uid_manager.fix_invalid_uids(new_cpacs_file)
-        file_has_changed = fix_empty_elements(new_cpacs_file) or file_has_changed
-        file_has_changed = fix_guide_curve_profile_element_names(new_cpacs_file) or file_has_changed
+    uid_manager.register_all_uids(cpacs_file)
 
-        if file_has_changed:
-            logging.info("A fixed cpacs2 file will be stored to '%s'" % (filename + ".fixed"))
-            with open(filename + ".fixed", "w") as text_file:
-                text_file.write(new_cpacs_file.exportDocumentAsString())
+    upgrade_2_to_3(cpacs_file, args)
 
-    old_cpacs_file.openString(new_cpacs_file.exportDocumentAsString())
+    version_new = "3.0"
 
-    convert_cpacs_xml(new_cpacs_file)
+    add_changelog(cpacs_file, "Converted to CPACS %s using cpacs2to3" % version_new)
 
-    # perform geometric conversions using tigl
-    convert_geometry(filename, new_cpacs_file, old_cpacs_file)
+    logging.info("Done")
 
-    logging.info ("Done")
-
+    output_file = args.o
     if output_file is not None:
         logging.info("Saving file to '" + output_file + "'")
-        new_cpacs_file.save(output_file)
+        cpacs_file.save(output_file)
     else:
-        logging.info(new_cpacs_file.exportDocumentAsString())
+        logging.info(cpacs_file.exportDocumentAsString())
 
 
 
