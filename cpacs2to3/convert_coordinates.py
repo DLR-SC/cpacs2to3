@@ -195,6 +195,8 @@ def find_guide_curve_using_profile(tixi2, profileUid):
             nSegments = tixi2.getNumberOfChilds(xpathSegments)
             for segmentIdx in range(0, nSegments):
                 xpathGuideCurves = xpathSegments + '/segment[{}]/guideCurves'.format(segmentIdx + 1)
+                if not tixi2.checkElement(xpathGuideCurves):
+                    continue
                 nCurves = tixi2.getNumberOfChilds(xpathGuideCurves)
                 for curveIdx in range(0, nCurves):
                     xpathGuideCurve = xpathGuideCurves + '/guideCurve[{}]'.format(curveIdx + 1)
