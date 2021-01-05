@@ -22,6 +22,7 @@ from cpacs2to3.convert_coordinates import convert_geometry, do_convert_guide_cur
 from cpacs2to3.tixi_helper import parent_path, element_name, element_index
 from cpacs2to3.uid_generator import uid_manager
 from cpacs2to3.graph import Graph, CPACS2Node, CPACS3Node
+from cpacs2to3.material import upgradeMaterialCpacs31
 
 
 def bump_version(vers, level):
@@ -414,6 +415,19 @@ def convert_non_explicit_stringer(tixi3):
         tixi3.addDoubleElement(path, 'xsi', xsi, '%g')
         tixi3.addTextElement(path, 'referenceUID', uid)
 
+def rearrange_non_explicit_stringer(tixi3):
+    """schema order of angle and refpoint of wingStringerType changed.
+
+    In 3.1 angle should be after refPoint
+    """
+    for path in tixihelper.resolve_xpaths(tixi3, '//lowerShell/stringer|//upperShell/stringer|//cell/stringer'):
+        if not tixi3.checkElement(path + '/pitch'):
+            continue
+        angle = tixi3.getDoubleElement(path + '/angle')
+        tixi3.removeElement(path + '/angle')
+        tixi3.addDoubleElement(path, 'angle', angle, None)
+
+
 
 def convert_spar_positions(tixi3):
 
@@ -554,6 +568,11 @@ def upgrade_3_to_31(cpacs_handle, args):
     for path in tixihelper.resolve_xpaths(cpacs_handle, xpath):
         if cpacs_handle.checkElement(path + '/negativeExtrusion'):
             cpacs_handle.renameElement(path, "negativeExtrusion", "doubleSidedExtrusion")
+
+    rearrange_non_explicit_stringer(cpacs_handle)
+
+    # Upgrade material definition
+    upgradeMaterialCpacs31(cpacs_handle)
 
     change_cpacs_version(cpacs_handle, "3.1")
 

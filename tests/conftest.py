@@ -8,6 +8,7 @@ class TestCase:
     input_file = None
     old_cpacs_file = None
     new_cpacs_file = None
+    fix_errors = False
 
     def __init__(self, file, old, new):
         self.input_file = file
