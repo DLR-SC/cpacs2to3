@@ -11,4 +11,3 @@ def test_valid_schema(simple_test):
     upgrade_3_to_31(simple_test.new_cpacs_file, simple_test)
 
     simple_test.new_cpacs_file.schemaValidateFromFile("tests/TestData/cpacs_3.1.0.xsd")
-
