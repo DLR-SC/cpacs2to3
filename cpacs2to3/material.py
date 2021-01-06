@@ -4,7 +4,6 @@ documentation
 """
 import numpy as np
 import numpy.linalg as nplin
-from scipy.linalg import block_diag
 from collections import OrderedDict
 import logging as log
 
@@ -327,78 +326,6 @@ class MaterialDefinition():
             if value is not None and abs(value)>1e-8:
                 # value must be not None and != zero
                 tixi.addTextElement(xPath, name, str(value))
-
-    def setStiffnessMatrix(
-        self,
-        # isotrop
-        e1,
-        g12,
-        # transversal isotrop
-        e2=None,
-        nu12=None,
-        nu23=None,
-        # orthotrop
-        e3=None,
-        g23=None,
-        g13=None,
-        nu31=None,
-    ):
-        """This method assumes a transverse isotropic material.
-
-        Altenbach, Holm, Johannes Altenbach, und Rolands Rikards.
-            Einführung in die Mechanik der Laminat- und Sandwichtragwerke:
-            Modellierung und Berechnung von Balken und Platten aus Verbundwerkstoffen.
-            1. Aufl. Stuttgart: Wiley-VCH, 1996.
-
-            page 45 (Transversale Isotropie)
-
-        Accepted parameter combinations:
-
-        - isotrop
-            - e1, g12
-            - e1, nu12
-        - transversal isotrop
-            - e1, g12, e2, nu12
-            - e1, g12, e2, nu12, nu23
-            - e1, g12, e2, nu12, nu23, g23, g13
-        - orthotrop
-            - e1, g12, e2, nu12, nu23, e3, g23, g13, nu31
-        """
-
-        if g12 is None:
-            # isotrop switch if e and nu are given
-            g12 = e1 / (2 * (1 + nu12))
-
-        if not all(np.array([e2, nu12]) != None):
-            log.debug("Isotrop behavior material assumed for material with id "+self.id)
-            e2 = e3 = e1
-            nu12 = e1 / 2 / g12 - 1
-            nu31 = nu23 = nu12
-            g13 = g23 = g12
-        elif not all(np.array([e3, g23, g13, nu31]) != None):
-            log.debug("Transversal isotrop material behavior assumed for material with id "+self.id)
-            e3 = e2
-            nu31 = nu12
-            g13 = g12 if g13 is None else g13
-            nu23 = nu12 if nu23 is None else nu23
-            g23 = e2 / (2.0 * (1 + nu23)) if g23 is None else g23
-        else:
-            log.debug("Orthotrop material behavior assumed for material with id "+self.id)
-
-        self._savedModuli = {}
-
-        matUpperLeft = np.array(
-            [
-                [1.0 / e1, -nu12 / e1, -nu31 / e1],
-                [-nu12 / e1, 1.0 / e2, -nu23 / e2],
-                [-nu31 / e1, -nu23 / e2, 1.0 / e3,],
-            ]
-        )
-
-        matLowerRight = np.diag([1.0 / g23, 1.0 / g13, 1.0 / g12])
-
-        compliance = block_diag(matUpperLeft, matLowerRight)
-        self.stiffnessMatrix = np.linalg.inv(compliance)
 
     def setStrength(self, strength):
         """This method is intended to set the strength of the material."""
