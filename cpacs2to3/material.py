@@ -38,9 +38,6 @@ class MaterialDefinition():
         self.description = None
         self.rho = None
 
-        self.isShell = False
-        """Flag if shell properties are given. Required for cpacs writing"""
-
         self.stiffnessMatrix = np.zeros((6, 6))
         """stiffnesses of material definition"""
 
@@ -130,7 +127,7 @@ class MaterialDefinition():
             for stiffEntry in ["k11", "k12", "k13", "k22", "k23", "k33", "k44", "k55", "k66"]:
                 stiffnessDict[stiffEntry] = tixi.getDoubleElement(xPath + "/" + stiffEntry)
 
-            sig11t, sig11c, sig22t, sig22c, tau12 = 1.0, 1.0, 1.0, 1.0, 1.0
+            sig11t, sig11c, sig22t, sig22c, tau12, tau23 = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
 
             warnMsg = (
                 'CPACS reading of strengths for orthotrop material with id "%s" ' % self.id
@@ -216,26 +213,6 @@ class MaterialDefinition():
                               ("thermalExpansionCoeff", self.thermalExpansionCoeff[0]),
                               ("fatigueFactor", self.fatiqueFactor),
                               ]
-        elif self.isShell: # shells not isotrop
-            xPath = self.xPath + "/orthotropicShellProperties"
-            namesAndValues = [("E1", self.moduli["e11"]),
-                              ("E2", self.moduli["e22"]),
-                              ("G12", self.moduli["g12"]),
-                              ("nu", self.moduli["nu12"]),
-                              ("sig1c", self.strength.get('sigma11c', None)),
-                              ("sig1t", self.strength.get('sigma11t', None)),
-                              ("sig2c", self.strength.get('sigma22c', None)),
-                              ("sig2t", self.strength.get('sigma22t', None)),
-                              ("tau12", self.strength.get('tau12', None)),
-                              ("eps1c", self.strength.get('eps11c', None)),
-                              ("eps1t", self.strength.get('eps11t', None)),
-                              ("eps2c", self.strength.get('eps22c', None)),
-                              ("eps2t", self.strength.get('eps22t', None)),
-                              ("gamma12", self.strength.get('gamma', None)),
-                              ("thermalConductivity1", self.thermalConductivity[0]),
-                              ("thermalConductivity2", self.thermalConductivity[3]),
-                              ("thermalExpansionCoeff1", self.thermalExpansionCoeff[0]),
-                              ("thermalExpansionCoeff2", self.thermalExpansionCoeff[3]),]
         else: # solid definitions not isotrop
             xPath = self.xPath + "/orthotropicSolidProperties"
             namesAndValues = [("E1", self.moduli["e11"]),
@@ -272,21 +249,8 @@ class MaterialDefinition():
                               ("thermalExpansionCoeff2", self.thermalExpansionCoeff[3]),
                               ("thermalExpansionCoeff3", self.thermalExpansionCoeff[5]),]
 
-        if self.isShell and not self.isOrthotrop:
-            xPath = self.xPath + "/anisotropicShellProperties"
-            namesAndValues = namesAndValues[4:]
-            Q = self.getReducedStiffnessMatrix()
-            namesAndValues = [("Q11", Q[0, 0]),
-                              ("Q12", Q[0, 1]),
-                              ("Q13", Q[0, 2]),
-                              ("Q22", Q[1, 1]),
-                              ("Q23", Q[1, 2]),
-                              ("Q33", Q[2, 2]),] + \
-                             namesAndValues + \
-                             [("thermalConductivity3", self.thermalConductivity[5]),
-                              ("thermalExpansionCoeff12", self.thermalExpansionCoeff[1]),]
 
-        if not self.isShell and not self.isOrthotrop:
+        if not self.isOrthotrop:
             xPath = self.xPath + "/anisotropicSolidProperties"
             namesAndValues = namesAndValues[9:]
             k = self.stiffnessMatrix
@@ -388,16 +352,16 @@ class MaterialDefinition():
 
         nu12 = -complianceM[1, 0] * e11
         nu21 = -complianceM[0, 1] * e22
-        nu31 = -complianceM[0, 2] * e33
+        nu13 = -complianceM[0, 2] * e11
 
-        nu31 = -complianceM[2, 0] * e11
+        nu31 = -complianceM[2, 0] * e33
         nu23 = -complianceM[2, 1] * e22
         nu32 = -complianceM[1, 2] * e33
 
         if any(value < 0 for value in [e11, e22, e33, g12, g23, g13]):
             if not hasattr(self, "xPath"):
                 self.xPath = ""
-            raise ValueError(
+            raise CpacsError(
                 "Please check your material definition! "
                 + "Got negative youngs- or shear modulus at material element at xPath "
                 + self.xPath
@@ -413,7 +377,7 @@ class MaterialDefinition():
                 ("g13", g13),
                 ("nu12", nu12),
                 ("nu21", nu21),
-                ("nu31", nu31),
+                ("nu13", nu13),
                 ("nu31", nu31),
                 ("nu23", nu23),
                 ("nu32", nu32),
@@ -427,7 +391,8 @@ class MaterialDefinition():
         return abs(self.stiffnessMatrix[0, 1] - self.stiffnessMatrix[1, 2]) < 1e-8
 
     def _getIsOrthotrop(self):
-        """:return: True if MaterialDefinition is orthotrop. This is calculated by means of the stiffness matrix."""
+        """:return: True if MaterialDefinition is orthotrop or anisotrop.
+            This is calculated by means of the stiffness matrix."""
         return not np.any(self.stiffnessMatrix[3:, :3])
 
     moduli = property(fget=_getModuli)

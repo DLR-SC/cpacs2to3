@@ -418,16 +418,12 @@ def convert_non_explicit_stringer(tixi3):
 def rearrange_non_explicit_stringer(tixi3):
     """schema order of angle and refpoint of wingStringerType changed.
 
-    In 3.1 angle should be after refPoint
+    In 3.1 angle should be after refPoint compared to 3.0
     """
     for path in tixihelper.resolve_xpaths(tixi3, '//lowerShell/stringer|//upperShell/stringer|//cell/stringer'):
         if not tixi3.checkElement(path + '/pitch'):
             continue
-        angle = tixi3.getDoubleElement(path + '/angle')
-        tixi3.removeElement(path + '/angle')
-        tixi3.addDoubleElement(path, 'angle', angle, None)
-
-
+        tixi3.swapElements(path + '/angle', path + '/refPoint')
 
 def convert_spar_positions(tixi3):
 
