@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='cpacs2to3',
-    version='0.9.3',
+    version='0.10.0',
     description='Converts CPACS 2 files to CPACS3 files',
     author='Martin Siggel',
     author_email=',martin.siggel@dlr.de',
