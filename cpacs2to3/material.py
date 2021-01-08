@@ -97,7 +97,7 @@ class MaterialDefinition:
 
         if self.id in ["", None]:
             self.id = x_path.rsplit("/", 1)[1]
-            
+
         self._savedModuli = {}
         self.name = tixi.getTextElement(x_path + "/name")
         self.rho = tixi.getDoubleElement(x_path + "/rho")
@@ -130,10 +130,10 @@ class MaterialDefinition:
             sig11t, sig11c, sig22t, sig22c, tau12, tau23 = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
 
             warn_msg = (
-                'CPACS reading of strengths for orthotrop material with id "%s" ' % self.id
-                + "is actually not supported - zeros inserted. "
-                "Maybe you intended to create material properties for UD-CFK. "
-                "Then use transversal isotrop material instead!"
+                    'CPACS reading of strengths for orthotrop material with id "%s" ' % self.id
+                    + "is actually not supported - zeros inserted. "
+                      "Maybe you intended to create material properties for UD-CFK. "
+                      "Then use transversal isotrop material instead!"
             )
             logging.warning(warn_msg)
 
@@ -202,86 +202,86 @@ class MaterialDefinition:
         if self.is_isotropic:
             x_path = self.xPath + "/isotropicProperties"
             names_and_values = [("E", self.moduli["e11"]),
-                              ("G", self.moduli["g12"]),
-                              ("sigc", self.strength.get('sigma11c', None)),
-                              ("sigt", self.strength.get('sigma11t', None)),
-                              ("tau12", self.strength.get('tau12', None)),
-                              ("epsc", self.strength.get('eps11c', None)),
-                              ("epst", self.strength.get('eps11t', None)),
-                              ("gamma12", self.strength.get('gamma', None)),
-                              ("thermalConductivity", self.thermalConductivity[0]),
-                              ("thermalExpansionCoeff", self.thermalExpansionCoeff[0]),
-                              ("fatigueFactor", self.fatiqueFactor),
-                              ]
+                                ("G", self.moduli["g12"]),
+                                ("sigc", self.strength.get('sigma11c', None)),
+                                ("sigt", self.strength.get('sigma11t', None)),
+                                ("tau12", self.strength.get('tau12', None)),
+                                ("epsc", self.strength.get('eps11c', None)),
+                                ("epst", self.strength.get('eps11t', None)),
+                                ("gamma12", self.strength.get('gamma', None)),
+                                ("thermalConductivity", self.thermalConductivity[0]),
+                                ("thermalExpansionCoeff", self.thermalExpansionCoeff[0]),
+                                ("fatigueFactor", self.fatiqueFactor),
+                                ]
         else:  # solid definitions not isotrop
             x_path = self.xPath + "/orthotropicSolidProperties"
             names_and_values = [("E1", self.moduli["e11"]),
-                              ("E2", self.moduli["e22"]),
-                              ("E3", self.moduli["e33"]),
-                              ("G12", self.moduli["g12"]),
-                              ("G23", self.moduli["g23"]),
-                              ("G31", self.moduli["g13"]),
-                              ("nu12", self.moduli["nu12"]),
-                              ("nu23", self.moduli["nu23"]),
-                              ("nu31", self.moduli["nu31"]),
-                              ("sig1c", self.strength.get('sigma11c', None)),
-                              ("sig1t", self.strength.get('sigma11t', None)),
-                              ("sig2c", self.strength.get('sigma22c', None)),
-                              ("sig2t", self.strength.get('sigma22t', None)),
-                              ("sig3c", self.strength.get('sigma33c', None)),
-                              ("sig3t", self.strength.get('sigma33t', None)),
-                              ("tau12", self.strength.get('tau12', None)),
-                              ("tau23", self.strength.get('tau23', None)),
-                              ("tau31", self.strength.get('tau31', None)),
-                              ("eps1c", self.strength.get('eps11c', None)),
-                              ("eps1t", self.strength.get('eps11t', None)),
-                              ("eps2c", self.strength.get('eps22c', None)),
-                              ("eps2t", self.strength.get('eps22t', None)),
-                              ("eps3c", self.strength.get('eps33c', None)),
-                              ("eps3t", self.strength.get('eps33t', None)),
-                              ("gamma12", self.strength.get('gamma12', None)),
-                              ("gamma23", self.strength.get('gamma23', None)),
-                              ("gamma31", self.strength.get('gamma31', None)),
-                              ("thermalConductivity1", self.thermalConductivity[0]),
-                              ("thermalConductivity2", self.thermalConductivity[3]),
-                              ("thermalConductivity3", self.thermalConductivity[5]),
-                              ("thermalExpansionCoeff1", self.thermalExpansionCoeff[0]),
-                              ("thermalExpansionCoeff2", self.thermalExpansionCoeff[3]),
-                              ("thermalExpansionCoeff3", self.thermalExpansionCoeff[5])]
+                                ("E2", self.moduli["e22"]),
+                                ("E3", self.moduli["e33"]),
+                                ("G12", self.moduli["g12"]),
+                                ("G23", self.moduli["g23"]),
+                                ("G31", self.moduli["g13"]),
+                                ("nu12", self.moduli["nu12"]),
+                                ("nu23", self.moduli["nu23"]),
+                                ("nu31", self.moduli["nu31"]),
+                                ("sig1c", self.strength.get('sigma11c', None)),
+                                ("sig1t", self.strength.get('sigma11t', None)),
+                                ("sig2c", self.strength.get('sigma22c', None)),
+                                ("sig2t", self.strength.get('sigma22t', None)),
+                                ("sig3c", self.strength.get('sigma33c', None)),
+                                ("sig3t", self.strength.get('sigma33t', None)),
+                                ("tau12", self.strength.get('tau12', None)),
+                                ("tau23", self.strength.get('tau23', None)),
+                                ("tau31", self.strength.get('tau31', None)),
+                                ("eps1c", self.strength.get('eps11c', None)),
+                                ("eps1t", self.strength.get('eps11t', None)),
+                                ("eps2c", self.strength.get('eps22c', None)),
+                                ("eps2t", self.strength.get('eps22t', None)),
+                                ("eps3c", self.strength.get('eps33c', None)),
+                                ("eps3t", self.strength.get('eps33t', None)),
+                                ("gamma12", self.strength.get('gamma12', None)),
+                                ("gamma23", self.strength.get('gamma23', None)),
+                                ("gamma31", self.strength.get('gamma31', None)),
+                                ("thermalConductivity1", self.thermalConductivity[0]),
+                                ("thermalConductivity2", self.thermalConductivity[3]),
+                                ("thermalConductivity3", self.thermalConductivity[5]),
+                                ("thermalExpansionCoeff1", self.thermalExpansionCoeff[0]),
+                                ("thermalExpansionCoeff2", self.thermalExpansionCoeff[3]),
+                                ("thermalExpansionCoeff3", self.thermalExpansionCoeff[5])]
 
         if not self.is_orthotropic:
             x_path = self.xPath + "/anisotropicSolidProperties"
             names_and_values = names_and_values[9:]
             k = self.stiffnessMatrix
             names_and_values = [("C11", k[0, 0]),
-                              ("C12", k[0, 1]),
-                              ("C13", k[0, 2]),
-                              ("C14", k[0, 3]),
-                              ("C15", k[0, 4]),
-                              ("C16", k[0, 5]),
-                              ("C22", k[1, 1]),
-                              ("C23", k[1, 2]),
-                              ("C24", k[1, 3]),
-                              ("C25", k[1, 4]),
-                              ("C26", k[1, 5]),
-                              ("C33", k[2, 2]),
-                              ("C34", k[2, 3]),
-                              ("C35", k[2, 4]),
-                              ("C36", k[2, 5]),
-                              ("C44", k[3, 3]),
-                              ("C45", k[3, 4]),
-                              ("C46", k[3, 5]),
-                              ("C55", k[4, 4]),
-                              ("C56", k[4, 5]),
-                              ("C66", k[5, 5]),
-                              ] + \
-                             names_and_values + \
-                             [("thermalConductivity12", self.thermalConductivity[1]),
-                              ("thermalConductivity23", self.thermalConductivity[4]),
-                              ("thermalConductivity31", self.thermalConductivity[2]),
-                              ("thermalExpansionCoeff12", self.thermalExpansionCoeff[1]),
-                              ("thermalExpansionCoeff23", self.thermalExpansionCoeff[4]),
-                              ("thermalExpansionCoeff31", self.thermalExpansionCoeff[2])]
+                                ("C12", k[0, 1]),
+                                ("C13", k[0, 2]),
+                                ("C14", k[0, 3]),
+                                ("C15", k[0, 4]),
+                                ("C16", k[0, 5]),
+                                ("C22", k[1, 1]),
+                                ("C23", k[1, 2]),
+                                ("C24", k[1, 3]),
+                                ("C25", k[1, 4]),
+                                ("C26", k[1, 5]),
+                                ("C33", k[2, 2]),
+                                ("C34", k[2, 3]),
+                                ("C35", k[2, 4]),
+                                ("C36", k[2, 5]),
+                                ("C44", k[3, 3]),
+                                ("C45", k[3, 4]),
+                                ("C46", k[3, 5]),
+                                ("C55", k[4, 4]),
+                                ("C56", k[4, 5]),
+                                ("C66", k[5, 5]),
+                                ] + \
+                               names_and_values + \
+                               [("thermalConductivity12", self.thermalConductivity[1]),
+                                ("thermalConductivity23", self.thermalConductivity[4]),
+                                ("thermalConductivity31", self.thermalConductivity[2]),
+                                ("thermalExpansionCoeff12", self.thermalExpansionCoeff[1]),
+                                ("thermalExpansionCoeff23", self.thermalExpansionCoeff[4]),
+                                ("thermalExpansionCoeff31", self.thermalExpansionCoeff[2])]
 
         if not tixi.checkElement(x_path):
             tixi.createElement(*x_path.rsplit('/', 1))
@@ -297,26 +297,26 @@ class MaterialDefinition:
     def remove_cpacs2_definitions(self, tixi):
         """removes the cpacs2 definitions in the material node at self.xPath"""
         elems_to_remove = ["fatigueFactor",
-                         "thermalConductivity",
-                         "k11", "k12", "k13", "k22", "k23", "k33", "k44", "k55", "k66",
-                         "sig11",
-                         "tau12",
-                         "sig11yieldT",
-                         "sig11yieldC",
-                         "sig11t",
-                         "sig11c",
-                         "sig22t",
-                         "sig22c",
-                         "sig33t",
-                         "sig33c",
-                         "tau12",
-                         "tau23",
-                         "tau13",
-                         "sig33t",
-                         "sig33c",
-                         "maxStrain",
-                         "postFailure",
-                         ]
+                           "thermalConductivity",
+                           "k11", "k12", "k13", "k22", "k23", "k33", "k44", "k55", "k66",
+                           "sig11",
+                           "tau12",
+                           "sig11yieldT",
+                           "sig11yieldC",
+                           "sig11t",
+                           "sig11c",
+                           "sig22t",
+                           "sig22c",
+                           "sig33t",
+                           "sig33c",
+                           "tau12",
+                           "tau23",
+                           "tau13",
+                           "sig33t",
+                           "sig33c",
+                           "maxStrain",
+                           "postFailure",
+                           ]
         for element in elems_to_remove:
             x_path = self.xPath + '/' + element
             if tixi.checkElement(x_path):
