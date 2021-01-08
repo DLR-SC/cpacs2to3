@@ -2,12 +2,12 @@
 
 [![Build Status](https://travis-ci.com/DLR-SC/cpacs2to3.svg?branch=master)](https://travis-ci.com/DLR-SC/cpacs2to3)
 
-A tool to convert CPACS files from version 2 to CPACS 3.
+A tool to convert CPACS files from version 2 to CPACS 3.1. 
 
 ## Quickstart
 The simplest way to install cpacs2to3 is to use the conda package manager. The dependencies should be installed automatically and you should be ready to go:
 
-	$ conda create -n cpacs2to3 python=3.5 cpacs2to3 -c dlr-sc 
+	$ conda create -n cpacs2to3 python=3.7 cpacs2to3 -c dlr-sc 
 	
 Enter the virtual environment
 
@@ -24,7 +24,8 @@ If the output file is not specified, no file will be written, but the cpacs file
  - Adds uIDs, that are required by the new CPACS 3 definition.
  - Conversion of the guide curve geometry. CPACS 3 uses a different definition of the guide curves, where we have to convert the geometry.
  - Conversion of the wing structure, including recomputation of eta/xsi coordinates to the new definition.
- - Increments the CPACS version number to 3.
+ - Conversion of material stiffness properties 
+ - Updates the CPACS version number of the file
 
 ## How does does it work?
 We are using TiXI to transform the xml. This is the easy part. The hard part is the geometry conversion. To support this process, we use both the TiGL 2 and the TiGL 3 library that are able to compute the geometries for both cpacs standards.
@@ -41,6 +42,6 @@ To enter this environment, enter
 cpacs2to3 can then be installed into this environment using the standard `python setup.py install` command.
 
 ## Legal stuff
-Copyright &copy; 2015-2016, German Aerospace Center (DLR e.V.)
+Copyright &copy; 2020, German Aerospace Center (DLR e.V.)
 
 This software is licensed under the Apache Public License 2.0. See `LICENSE` for details.

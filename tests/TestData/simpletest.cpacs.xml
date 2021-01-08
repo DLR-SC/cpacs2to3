@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<cpacs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://cpacs.googlecode.com/files/CPACS_21_Schema.xsd">
+<cpacs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="cpacs_2.3.1.xsd">
   <header>
     <name>Cpacs2Test</name>
     <description>Simple Wing for unit testing</description>
@@ -494,6 +494,78 @@
         </fuselageProfile>
       </fuselageProfiles>
     </profiles>
+    <materials>
+      <material uID="aluminium2024">
+        <name>aluminium2024</name>
+        <description>Isotropic material Aluminium 2024</description>
+        <rho>2800.0</rho>
+        <k11>80956121647.4</k11>
+        <k12>26715520143.6</k12>
+        <sig11>359000000.0</sig11>
+        <tau12>207000000.0</tau12>
+      </material>
+      <material uID="T300_15k_976">
+        <name>T-300 15k/976 from MIL-HDBK-17-2F Volume 2 Chapter 4 Page 4-152ff</name>
+        <rho>1600</rho>
+        <k11>135866237991</k11>
+        <k12>4398471527</k12>
+        <k22>10420757731</k22>
+        <k23>3410913740</k23>
+        <k66>6274228870</k66>
+        <sig11t>1427214699</sig11t>
+        <sig11c>1503057026</sig11c>
+        <sig22t>39024324</sig22t>
+        <sig22c>206842710</sig22c>
+        <tau12>76531802</tau12>
+        <tau23>76531802</tau23>
+      </material>
+      <composites>
+        <composite uID="Comp_Shear">
+          <name>Composite for shear loaded structures, such as ribs and spars</name>
+          <description />
+          <compositeLayer>
+            <thickness>0.05</thickness>
+            <phi>0</phi>
+            <materialUID>T300_15k_976</materialUID>
+          </compositeLayer>
+          <compositeLayer>
+            <thickness>0.05</thickness>
+            <phi>90</phi>
+            <materialUID>T300_15k_976</materialUID>
+          </compositeLayer>
+          <compositeLayer>
+            <thickness>0.2</thickness>
+            <phi>45</phi>
+            <materialUID>T300_15k_976</materialUID>
+          </compositeLayer>
+          <compositeLayer>
+            <thickness>0.2</thickness>
+            <phi>-45</phi>
+            <materialUID>T300_15k_976</materialUID>
+          </compositeLayer>
+          <compositeLayer>
+            <thickness>0.2</thickness>
+            <phi>-45</phi>
+            <materialUID>T300_15k_976</materialUID>
+          </compositeLayer>
+          <compositeLayer>
+            <thickness>0.2</thickness>
+            <phi>45</phi>
+            <materialUID>T300_15k_976</materialUID>
+          </compositeLayer>
+          <compositeLayer>
+            <thickness>0.05</thickness>
+            <phi>90</phi>
+            <materialUID>T300_15k_976</materialUID>
+          </compositeLayer>
+          <compositeLayer>
+            <thickness>0.05</thickness>
+            <phi>0</phi>
+            <materialUID>T300_15k_976</materialUID>
+          </compositeLayer>
+        </composite>
+      </composites>
+    </materials>
   </vehicles>
   <toolspecific>
     <cFD>
