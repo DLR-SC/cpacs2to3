@@ -22,7 +22,7 @@ from cpacs2to3.convert_coordinates import convert_geometry, do_convert_guide_cur
 from cpacs2to3.tixi_helper import parent_path, element_name, element_index
 from cpacs2to3.uid_generator import uid_manager
 from cpacs2to3.graph import Graph, CPACS2Node, CPACS3Node
-from cpacs2to3.material import upgradeMaterialCpacs31
+from cpacs2to3.material import upgrade_material_cpacs_31
 
 
 def bump_version(vers, level):
@@ -568,7 +568,7 @@ def upgrade_3_to_31(cpacs_handle, args):
     rearrange_non_explicit_stringer(cpacs_handle)
 
     # Upgrade material definition
-    upgradeMaterialCpacs31(cpacs_handle)
+    upgrade_material_cpacs_31(cpacs_handle)
 
     change_cpacs_version(cpacs_handle, "3.1")
 

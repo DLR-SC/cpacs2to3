@@ -10,24 +10,24 @@ import logging
 from cpacs2to3 import tixi_helper
 
 
-def upgradeMaterialCpacs31(cpacs_handle):
+def upgrade_material_cpacs_31(cpacs_handle):
     """upgrades material definition from cpacs 3.0 to 3.1"""
 
     # read materials
-    baseXPath = '/cpacs/vehicles/materials'
+    base_x_path = '/cpacs/vehicles/materials'
     materials = []
-    for xpath in tixi_helper.resolve_xpaths(cpacs_handle, baseXPath + '/material'):
+    for xpath in tixi_helper.resolve_xpaths(cpacs_handle, base_x_path + '/material'):
         material = MaterialDefinition()
-        material.readCpacs(xpath, cpacs_handle)
+        material.read_cpacs(xpath, cpacs_handle)
         materials.append(material)
 
     # add materials as cpacs3.1
     for material in materials:
-        material.removeCpacs2Definitions(cpacs_handle)
-        material.writeCpacs(cpacs_handle)
+        material.remove_cpacs2_definitions(cpacs_handle)
+        material.write_cpacs(cpacs_handle)
 
 
-class MaterialDefinition():
+class MaterialDefinition:
     """classdocs"""
 
     def __init__(self, **kwargs):
@@ -84,33 +84,33 @@ class MaterialDefinition():
         self.specificHeatDefaultTemp = 20 + 273.15
         """Default temperature for specificHeat"""
 
-        self.setStrength(kwargs.pop("strength", dict([(s, 0.0) for s in self._strengthValues])))
+        self.set_strength(kwargs.pop("strength", dict([(s, 0.0) for s in self._strengthValues])))
 
-    def readCpacs(self, xPath, tixi):
+    def read_cpacs(self, x_path, tixi):
         """calculations from Altenbach - Einfuehrung in die Mechanik der Laminat- und 
         Sandwichtragwerke; Deutscher Verlag fuer Grundstoffindustrie p.36 cont."""
-        self.xPath = xPath
-        if tixi.checkAttribute(xPath, "uID"):
-            uid = tixi.getTextAttribute(xPath, "uID")
+        self.xPath = x_path
+        if tixi.checkAttribute(x_path, "uID"):
+            uid = tixi.getTextAttribute(x_path, "uID")
             if uid != "":
                 self.id = uid
 
         if self.id in ["", None]:
-            self.id = xPath.rsplit("/", 1)[1]
+            self.id = x_path.rsplit("/", 1)[1]
             
         self._savedModuli = {}
-        self.name = tixi.getTextElement(xPath + "/name")
-        self.rho = tixi.getDoubleElement(xPath + "/rho")
-        if tixi.checkElement(xPath + "/fatigueFactor"):
-            self.fatiqueFactor = tixi.getDoubleElement(xPath + "/fatigueFactor")
-        if tixi.checkElement(xPath + "/thermalConductivity"):
+        self.name = tixi.getTextElement(x_path + "/name")
+        self.rho = tixi.getDoubleElement(x_path + "/rho")
+        if tixi.checkElement(x_path + "/fatigueFactor"):
+            self.fatiqueFactor = tixi.getDoubleElement(x_path + "/fatigueFactor")
+        if tixi.checkElement(x_path + "/thermalConductivity"):
             self.thermalConductivity[0] = self.thermalConductivity[3] = self.thermalConductivity[5] = \
-                tixi.getDoubleElement(xPath + "/thermalConductivity")
+                tixi.getDoubleElement(x_path + "/thermalConductivity")
         self.description = ""
-        if tixi.checkElement(xPath + "/description"):
-            self.description = tixi.getTextElement(xPath + "/description")
+        if tixi.checkElement(x_path + "/description"):
+            self.description = tixi.getTextElement(x_path + "/description")
 
-        self._readCpacsOldDirectionalProperties(xPath, tixi)
+        self._read_cpacs_old_directional_properties(x_path, tixi)
 
         for s in self._strengthValues:
             if abs(self.strength[s]) < 1e-8:
@@ -118,75 +118,75 @@ class MaterialDefinition():
 
         return self
 
-    def _readCpacsOldDirectionalProperties(self, xPath, tixi):
+    def _read_cpacs_old_directional_properties(self, x_path, tixi):
         """Read cpacs direction dependend properties. In this case strength and stiffness are read."""
-        stiffnessDict = {}
+        stiffness_dict = {}
 
-        if tixi.checkElement(xPath + "/k55"):  # required element for orthotrop material
+        if tixi.checkElement(x_path + "/k55"):  # required element for orthotrop material
             # orthotrop material
             for stiffEntry in ["k11", "k12", "k13", "k22", "k23", "k33", "k44", "k55", "k66"]:
-                stiffnessDict[stiffEntry] = tixi.getDoubleElement(xPath + "/" + stiffEntry)
+                stiffness_dict[stiffEntry] = tixi.getDoubleElement(x_path + "/" + stiffEntry)
 
             sig11t, sig11c, sig22t, sig22c, tau12, tau23 = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
 
-            warnMsg = (
+            warn_msg = (
                 'CPACS reading of strengths for orthotrop material with id "%s" ' % self.id
                 + "is actually not supported - zeros inserted. "
                 "Maybe you intended to create material properties for UD-CFK. "
                 "Then use transversal isotrop material instead!"
             )
-            logging.warning(warnMsg)
+            logging.warning(warn_msg)
 
         else:
-            if tixi.checkElement(xPath + "/k23"):  # required element for transversal isotrop material
+            if tixi.checkElement(x_path + "/k23"):  # required element for transversal isotrop material
                 # transversal isotrop material
                 for stiffEntry in ["k11", "k12", "k22", "k23", "k66"]:
-                    stiffnessDict[stiffEntry] = tixi.getDoubleElement(xPath + "/" + stiffEntry)
+                    stiffness_dict[stiffEntry] = tixi.getDoubleElement(x_path + "/" + stiffEntry)
 
-                sig11t = tixi.getDoubleElement(xPath + "/sig11t")
-                sig11c = tixi.getDoubleElement(xPath + "/sig11c")
-                sig22t = tixi.getDoubleElement(xPath + "/sig22t")
-                sig22c = tixi.getDoubleElement(xPath + "/sig22c")
-                tau12 = tixi.getDoubleElement(xPath + "/tau12")
-                tau23 = tixi.getDoubleElement(xPath + '/tau23')
+                sig11t = tixi.getDoubleElement(x_path + "/sig11t")
+                sig11c = tixi.getDoubleElement(x_path + "/sig11c")
+                sig22t = tixi.getDoubleElement(x_path + "/sig22t")
+                sig22c = tixi.getDoubleElement(x_path + "/sig22c")
+                tau12 = tixi.getDoubleElement(x_path + "/tau12")
+                tau23 = tixi.getDoubleElement(x_path + '/tau23')
 
-            elif tixi.checkElement(xPath + "/k11"):  # required element for isotrop material
+            elif tixi.checkElement(x_path + "/k11"):  # required element for isotrop material
                 # isotrop material
                 for stiffEntry in ["k11", "k12"]:
-                    stiffnessDict[stiffEntry] = tixi.getDoubleElement(xPath + "/" + stiffEntry)
+                    stiffness_dict[stiffEntry] = tixi.getDoubleElement(x_path + "/" + stiffEntry)
 
-                sig11t = tixi.getDoubleElement(xPath + "/sig11")
-                tau12 = tixi.getDoubleElement(xPath + "/tau12")
+                sig11t = tixi.getDoubleElement(x_path + "/sig11")
+                tau12 = tixi.getDoubleElement(x_path + "/tau12")
 
                 # creating stiffness params for transversal isotrop material
-                stiffnessDict["k22"] = stiffnessDict["k11"]
-                stiffnessDict["k23"] = stiffnessDict["k12"]
-                stiffnessDict["k66"] = 0.5 * (stiffnessDict["k11"] - stiffnessDict["k12"])
+                stiffness_dict["k22"] = stiffness_dict["k11"]
+                stiffness_dict["k23"] = stiffness_dict["k12"]
+                stiffness_dict["k66"] = 0.5 * (stiffness_dict["k11"] - stiffness_dict["k12"])
 
                 sig11c, sig22t, sig22c = [sig11t] * 3
                 tau23 = tau12
             else:
-                logging.error("wrong material definition at xPath " + xPath)
-                raise ValueError("wrong material definition at xPath " + xPath)
+                logging.error("wrong material definition at xPath " + x_path)
+                raise ValueError("wrong material definition at xPath " + x_path)
 
             # creating stiffness params for orthotrop material
-            stiffnessDict["k13"] = stiffnessDict["k12"]
-            stiffnessDict["k33"] = stiffnessDict["k22"]
-            stiffnessDict["k44"] = 0.5 * (stiffnessDict["k22"] - stiffnessDict["k23"])
-            stiffnessDict["k55"] = stiffnessDict["k66"]
+            stiffness_dict["k13"] = stiffness_dict["k12"]
+            stiffness_dict["k33"] = stiffness_dict["k22"]
+            stiffness_dict["k44"] = 0.5 * (stiffness_dict["k22"] - stiffness_dict["k23"])
+            stiffness_dict["k55"] = stiffness_dict["k66"]
 
         # now each stiffness needed for an orthotrop definition is known
         for i in range(6):
-            self.stiffnessMatrix[i, i] = stiffnessDict["k%s%s" % (i + 1, i + 1)]
+            self.stiffnessMatrix[i, i] = stiffness_dict["k%s%s" % (i + 1, i + 1)]
 
-        self.stiffnessMatrix[0, 2] = stiffnessDict["k13"]
-        self.stiffnessMatrix[2, 0] = stiffnessDict["k13"]
+        self.stiffnessMatrix[0, 2] = stiffness_dict["k13"]
+        self.stiffnessMatrix[2, 0] = stiffness_dict["k13"]
 
-        self.stiffnessMatrix[0, 1] = stiffnessDict["k12"]
-        self.stiffnessMatrix[1, 0] = stiffnessDict["k12"]
+        self.stiffnessMatrix[0, 1] = stiffness_dict["k12"]
+        self.stiffnessMatrix[1, 0] = stiffness_dict["k12"]
 
-        self.stiffnessMatrix[2, 1] = stiffnessDict["k23"]
-        self.stiffnessMatrix[1, 2] = stiffnessDict["k23"]
+        self.stiffnessMatrix[2, 1] = stiffness_dict["k23"]
+        self.stiffnessMatrix[1, 2] = stiffness_dict["k23"]
 
         self.strength["sigma11t"] = abs(sig11t)
         self.strength["sigma22t"] = abs(sig22t)
@@ -195,14 +195,13 @@ class MaterialDefinition():
         self.strength["tau12"] = tau12
         self.strength["tau23"] = tau23
 
-
-    def writeCpacs(self, tixi):
+    def write_cpacs(self, tixi):
         """write cpacs materials"""
 
         # Stiffness and strength
-        if self.isIsotrop:
-            xPath = self.xPath + "/isotropicProperties"
-            namesAndValues = [("E", self.moduli["e11"]),
+        if self.is_isotropic:
+            x_path = self.xPath + "/isotropicProperties"
+            names_and_values = [("E", self.moduli["e11"]),
                               ("G", self.moduli["g12"]),
                               ("sigc", self.strength.get('sigma11c', None)),
                               ("sigt", self.strength.get('sigma11t', None)),
@@ -214,9 +213,9 @@ class MaterialDefinition():
                               ("thermalExpansionCoeff", self.thermalExpansionCoeff[0]),
                               ("fatigueFactor", self.fatiqueFactor),
                               ]
-        else: # solid definitions not isotrop
-            xPath = self.xPath + "/orthotropicSolidProperties"
-            namesAndValues = [("E1", self.moduli["e11"]),
+        else:  # solid definitions not isotrop
+            x_path = self.xPath + "/orthotropicSolidProperties"
+            names_and_values = [("E1", self.moduli["e11"]),
                               ("E2", self.moduli["e22"]),
                               ("E3", self.moduli["e33"]),
                               ("G12", self.moduli["g12"]),
@@ -248,14 +247,13 @@ class MaterialDefinition():
                               ("thermalConductivity3", self.thermalConductivity[5]),
                               ("thermalExpansionCoeff1", self.thermalExpansionCoeff[0]),
                               ("thermalExpansionCoeff2", self.thermalExpansionCoeff[3]),
-                              ("thermalExpansionCoeff3", self.thermalExpansionCoeff[5]),]
+                              ("thermalExpansionCoeff3", self.thermalExpansionCoeff[5])]
 
-
-        if not self.isOrthotrop:
-            xPath = self.xPath + "/anisotropicSolidProperties"
-            namesAndValues = namesAndValues[9:]
+        if not self.is_orthotropic:
+            x_path = self.xPath + "/anisotropicSolidProperties"
+            names_and_values = names_and_values[9:]
             k = self.stiffnessMatrix
-            namesAndValues = [("C11", k[0, 0]),
+            names_and_values = [("C11", k[0, 0]),
                               ("C12", k[0, 1]),
                               ("C13", k[0, 2]),
                               ("C14", k[0, 3]),
@@ -277,28 +275,28 @@ class MaterialDefinition():
                               ("C56", k[4, 5]),
                               ("C66", k[5, 5]),
                               ] + \
-                             namesAndValues + \
+                             names_and_values + \
                              [("thermalConductivity12", self.thermalConductivity[1]),
                               ("thermalConductivity23", self.thermalConductivity[4]),
                               ("thermalConductivity31", self.thermalConductivity[2]),
                               ("thermalExpansionCoeff12", self.thermalExpansionCoeff[1]),
                               ("thermalExpansionCoeff23", self.thermalExpansionCoeff[4]),
-                              ("thermalExpansionCoeff31", self.thermalExpansionCoeff[2]),]
+                              ("thermalExpansionCoeff31", self.thermalExpansionCoeff[2])]
 
-        if not tixi.checkElement(xPath):
-            tixi.createElement(*xPath.rsplit('/',1))
-        for name, value in namesAndValues:
-            if value is not None and abs(value)>1e-8:
+        if not tixi.checkElement(x_path):
+            tixi.createElement(*x_path.rsplit('/', 1))
+        for name, value in names_and_values:
+            if value is not None and abs(value) > 1e-8:
                 # value must be not None and != zero
-                tixi.addTextElement(xPath, name, str(value))
+                tixi.addTextElement(x_path, name, str(value))
 
-    def setStrength(self, strength):
+    def set_strength(self, strength):
         """This method is intended to set the strength of the material."""
         self.strength.update(strength)
 
-    def removeCpacs2Definitions(self, tixi):
+    def remove_cpacs2_definitions(self, tixi):
         """removes the cpacs2 definitions in the material node at self.xPath"""
-        elemsToRemove = ["fatigueFactor",
+        elems_to_remove = ["fatigueFactor",
                          "thermalConductivity",
                          "k11", "k12", "k13", "k22", "k23", "k33", "k44", "k55", "k66",
                          "sig11",
@@ -319,13 +317,13 @@ class MaterialDefinition():
                          "maxStrain",
                          "postFailure",
                          ]
-        for element in elemsToRemove:
-            xPath = self.xPath + '/' + element
-            if tixi.checkElement(xPath):
-                tixi.removeElement(xPath)
+        for element in elems_to_remove:
+            x_path = self.xPath + '/' + element
+            if tixi.checkElement(x_path):
+                tixi.removeElement(x_path)
 
-
-    def _getModuli(self):
+    @property
+    def moduli(self):
         """
         calculates moduli
 
@@ -333,9 +331,9 @@ class MaterialDefinition():
         """
         if self._savedModuli != {}:
             return self._savedModuli
-        stiffnessM = self.stiffnessMatrix
+        stiffness_m = self.stiffnessMatrix
         try:
-            complianceM = np.linalg.inv(stiffnessM)
+            compliance_m = np.linalg.inv(stiffness_m)
         except np.linalg.LinAlgError:
             raise ValueError(
                 "Please check your material definition! "
@@ -343,21 +341,21 @@ class MaterialDefinition():
                 + self.xPath
             )
 
-        e11 = complianceM[0, 0] ** -1
-        e22 = complianceM[1, 1] ** -1
-        e33 = complianceM[2, 2] ** -1
+        e11 = compliance_m[0, 0] ** -1
+        e22 = compliance_m[1, 1] ** -1
+        e33 = compliance_m[2, 2] ** -1
 
-        g23 = complianceM[3, 3] ** -1
-        g13 = complianceM[4, 4] ** -1
-        g12 = complianceM[5, 5] ** -1
+        g23 = compliance_m[3, 3] ** -1
+        g13 = compliance_m[4, 4] ** -1
+        g12 = compliance_m[5, 5] ** -1
 
-        nu12 = -complianceM[1, 0] * e11
-        nu21 = -complianceM[0, 1] * e22
-        nu13 = -complianceM[0, 2] * e11
+        nu12 = -compliance_m[1, 0] * e11
+        nu21 = -compliance_m[0, 1] * e22
+        nu13 = -compliance_m[0, 2] * e11
 
-        nu31 = -complianceM[2, 0] * e33
-        nu23 = -complianceM[2, 1] * e22
-        nu32 = -complianceM[1, 2] * e33
+        nu31 = -compliance_m[2, 0] * e33
+        nu23 = -compliance_m[2, 1] * e22
+        nu32 = -compliance_m[1, 2] * e33
 
         if any(value < 0 for value in [e11, e22, e33, g12, g23, g13]):
             if not hasattr(self, "xPath"):
@@ -387,17 +385,13 @@ class MaterialDefinition():
 
         return self._savedModuli
 
-    def _getIsIsotrop(self):
-        """:return: True if MaterialDefinition is isotrop. This is calculated by means of the stiffness matrix."""
+    @property
+    def is_isotropic(self):
+        """:return: True if MaterialDefinition is isotropic. This is calculated by means of the stiffness matrix."""
         return abs(self.stiffnessMatrix[0, 1] - self.stiffnessMatrix[1, 2]) < 1e-8
 
-    def _getIsOrthotrop(self):
-        """:return: True if MaterialDefinition is orthotrop or anisotrop.
+    @property
+    def is_orthotropic(self):
+        """:return: True if MaterialDefinition is orthotropic or anisotropic.
             This is calculated by means of the stiffness matrix."""
         return not np.any(self.stiffnessMatrix[3:, :3])
-
-    moduli = property(fget=_getModuli)
-    isIsotrop = property(fget=_getIsIsotrop)
-    isOrthotrop = property(fget=_getIsOrthotrop)
-
-
