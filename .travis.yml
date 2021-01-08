@@ -51,6 +51,9 @@ jobs:
         - conda config --add channels https://conda.anaconda.org/dlr-sc
         - conda config --add channels https://conda.anaconda.org/dlr-sc/label/tigl-dev
 
-
       script:
-        - conda build ci/conda --user DLR-SC --token $ANACONDA_API_TOKEN
+        - if [ -n "$ANACONDA_API_TOKEN" ]; then
+            conda build ci/conda --user DLR-SC --token $ANACONDA_API_TOKEN
+          else
+            conda build ci/conda
+          fi
