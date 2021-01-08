@@ -122,24 +122,24 @@ class MaterialDefinition:
         """Read cpacs direction dependend properties. In this case strength and stiffness are read."""
         stiffness_dict = {}
 
-        if tixi.checkElement(x_path + "/k55"):  # required element for orthotrop material
-            # orthotrop material
+        if tixi.checkElement(x_path + "/k55"):  # required element for orthotropic material
+            # orthotropic material
             for stiffEntry in ["k11", "k12", "k13", "k22", "k23", "k33", "k44", "k55", "k66"]:
                 stiffness_dict[stiffEntry] = tixi.getDoubleElement(x_path + "/" + stiffEntry)
 
             sig11t, sig11c, sig22t, sig22c, tau12, tau23 = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
 
             warn_msg = (
-                    'CPACS reading of strengths for orthotrop material with id "%s" ' % self.id
+                    'CPACS reading of strengths for orthotropic material with id "%s" ' % self.id
                     + "is actually not supported - zeros inserted. "
                       "Maybe you intended to create material properties for UD-CFK. "
-                      "Then use transversal isotrop material instead!"
+                      "Then use transversal isotropic material instead!"
             )
             logging.warning(warn_msg)
 
         else:
-            if tixi.checkElement(x_path + "/k23"):  # required element for transversal isotrop material
-                # transversal isotrop material
+            if tixi.checkElement(x_path + "/k23"):  # required element for transversal isotropic material
+                # transversal isotropic material
                 for stiffEntry in ["k11", "k12", "k22", "k23", "k66"]:
                     stiffness_dict[stiffEntry] = tixi.getDoubleElement(x_path + "/" + stiffEntry)
 
@@ -150,15 +150,15 @@ class MaterialDefinition:
                 tau12 = tixi.getDoubleElement(x_path + "/tau12")
                 tau23 = tixi.getDoubleElement(x_path + '/tau23')
 
-            elif tixi.checkElement(x_path + "/k11"):  # required element for isotrop material
-                # isotrop material
+            elif tixi.checkElement(x_path + "/k11"):  # required element for isotropic material
+                # isotropic material
                 for stiffEntry in ["k11", "k12"]:
                     stiffness_dict[stiffEntry] = tixi.getDoubleElement(x_path + "/" + stiffEntry)
 
                 sig11t = tixi.getDoubleElement(x_path + "/sig11")
                 tau12 = tixi.getDoubleElement(x_path + "/tau12")
 
-                # creating stiffness params for transversal isotrop material
+                # creating stiffness params for transversal isotropic material
                 stiffness_dict["k22"] = stiffness_dict["k11"]
                 stiffness_dict["k23"] = stiffness_dict["k12"]
                 stiffness_dict["k66"] = 0.5 * (stiffness_dict["k11"] - stiffness_dict["k12"])
@@ -169,13 +169,13 @@ class MaterialDefinition:
                 logging.error("wrong material definition at xPath " + x_path)
                 raise ValueError("wrong material definition at xPath " + x_path)
 
-            # creating stiffness params for orthotrop material
+            # creating stiffness params for orthotropic material
             stiffness_dict["k13"] = stiffness_dict["k12"]
             stiffness_dict["k33"] = stiffness_dict["k22"]
             stiffness_dict["k44"] = 0.5 * (stiffness_dict["k22"] - stiffness_dict["k23"])
             stiffness_dict["k55"] = stiffness_dict["k66"]
 
-        # now each stiffness needed for an orthotrop definition is known
+        # now each stiffness needed for an orthotropic definition is known
         for i in range(6):
             self.stiffnessMatrix[i, i] = stiffness_dict["k%s%s" % (i + 1, i + 1)]
 
