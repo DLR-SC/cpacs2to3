@@ -5,7 +5,7 @@ documentation
 import numpy as np
 import numpy.linalg as nplin
 from collections import OrderedDict
-import logging as log
+import logging
 
 from cpacs2to3 import tixi_helper
 
@@ -135,7 +135,7 @@ class MaterialDefinition():
                 "Maybe you intended to create material properties for UD-CFK. "
                 "Then use transversal isotrop material instead!"
             )
-            log.warning(warnMsg)
+            logging.warning(warnMsg)
 
         else:
             if tixi.checkElement(xPath + "/k23"):  # required element for transversal isotrop material
@@ -166,6 +166,7 @@ class MaterialDefinition():
                 sig11c, sig22t, sig22c = [sig11t] * 3
                 tau23 = tau12
             else:
+                logging.error("wrong material definition at xPath " + xPath)
                 raise ValueError("wrong material definition at xPath " + xPath)
 
             # creating stiffness params for orthotrop material
@@ -361,7 +362,7 @@ class MaterialDefinition():
         if any(value < 0 for value in [e11, e22, e33, g12, g23, g13]):
             if not hasattr(self, "xPath"):
                 self.xPath = ""
-            raise CpacsError(
+            raise ValueError(
                 "Please check your material definition! "
                 + "Got negative youngs- or shear modulus at material element at xPath "
                 + self.xPath
