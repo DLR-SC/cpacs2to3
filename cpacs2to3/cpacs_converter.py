@@ -573,6 +573,16 @@ def upgrade_3_to_31(cpacs_handle, args):
     change_cpacs_version(cpacs_handle, "3.1")
 
 
+def upgrade_31_to_32(cpacs_handle, args):
+    """
+    Upgrades a cpacs 3.1 dataset to 3.2
+
+    CPACS 3.2 is basically the same as 3.1, we just need to increment the version
+    """
+
+    change_cpacs_version(cpacs_handle, "3.2")
+
+
 class VersionUpdater:
     """
     This class contains the logic to update a file to a specific cpacs version
@@ -588,9 +598,11 @@ class VersionUpdater:
         self.version.append(CPACS2Node())
         self.version.append(CPACS3Node("3.0"))
         self.version.append(CPACS3Node("3.1"))
+        self.version.append(CPACS3Node("3.2"))
 
         self.__add_update_method("2.0", "3.0", upgrade_2_to_3)
         self.__add_update_method("3.0", "3.1", upgrade_3_to_31)
+        self.__add_update_method("3.1", "3.2", upgrade_31_to_32)
 
     def __add_update_method(self, vold_str, vnew_str, updater):
         old_version_node = self.__get_version_node(vold_str)
