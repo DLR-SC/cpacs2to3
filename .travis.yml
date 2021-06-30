@@ -25,7 +25,7 @@ jobs:
         - conda config --add channels https://conda.anaconda.org/dlr-sc
         - source $HOME/miniconda/etc/profile.d/conda.sh
 
-        - conda create -n cpacs2to3_devel python=3.5 tigl3 tigl tixi3 tixi numpy semver pytest
+        - conda create -n cpacs2to3_devel python=3.8 tigl3>=3.2.0 tigl-static tixi3 tixi numpy semver pytest
         - conda activate cpacs2to3_devel
 
       install: pip install -e . --user
