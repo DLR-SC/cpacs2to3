@@ -660,7 +660,7 @@ def main():
     parser.add_argument('input_file', help='Input CPACS 2 file')
     parser.add_argument('-o', metavar='output_file', help='Name of the output file.')
     parser.add_argument('--fix-errors', '-f', help='try to fix empty and duplicate uids/elements',  action="store_true")
-    parser.add_argument('--target-version', '-v', default="3.1")
+    parser.add_argument('--target-version', '-v', default="3.2")
 
     args = parser.parse_args()
     filename = args.input_file
