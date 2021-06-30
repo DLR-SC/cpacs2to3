@@ -20,8 +20,8 @@ requirements:
 
   run:
     - python
-    - tigl3
-    - tigl >=2.2.3
+    - tigl3 >=3.2.0
+    - tigl-static >=2.2.3
     - tixi >=2.2.4
     - tixi3 >=3.0.3
     - numpy

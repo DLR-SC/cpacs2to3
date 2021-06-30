@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 import tigl3.configuration
-from OCC.TopoDS import topods
+from OCC.Core.TopoDS import topods
 from tigl import tiglwrapper
 from tigl3 import tigl3wrapper
 from tigl3.configuration import transform_wing_profile_geometry
