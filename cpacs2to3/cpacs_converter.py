@@ -30,7 +30,7 @@ def bump_version(vers, level):
     import re
 
     # allow also not semver compatible versions
-    if re.match(semver._REGEX, vers):
+    if re.match(semver.VersionInfo._REGEX, vers):
         pass
     elif re.match("[0-9]+\.[0-9]+", vers):
         vers = vers + ".0"

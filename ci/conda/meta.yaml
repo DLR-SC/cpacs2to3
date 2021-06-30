@@ -8,7 +8,7 @@ source:
   git_url: ../../
 
 build:
-  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 3) }}
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 4) }}
   noarch: python
   entry_points:
     - cpacs2to3 = cpacs2to3.cpacs_converter:main
@@ -25,7 +25,7 @@ requirements:
     - tixi >=2.2.4
     - tixi3 >=3.0.3
     - numpy
-    - semver
+    - semver >= 2.10.0
 
 test:
   imports:
