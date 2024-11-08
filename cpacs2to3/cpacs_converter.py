@@ -538,8 +538,10 @@ def upgrade_2_to_3(cpacs_handle, args):
     change_cpacs_version(cpacs_handle, "3.0")
     convert_cpacs_xml(cpacs_handle)
 
+    configurations = args.configurations.split(',') if args.configurations is not None else []
+
     # perform geometric conversions using tigl
-    convert_geometry(filename, cpacs_handle, old_cpacs_file)
+    convert_geometry(filename, cpacs_handle, old_cpacs_file, configurations=configurations)
 
 
 def upgrade_3_to_31(cpacs_handle, args):
@@ -661,6 +663,7 @@ def main():
     parser.add_argument('-o', metavar='output_file', help='Name of the output file.')
     parser.add_argument('--fix-errors', '-f', help='try to fix empty and duplicate uids/elements',  action="store_true")
     parser.add_argument('--target-version', '-v', default="3.2")
+    parser.add_argument('--configurations', '-c', default=None)
 
     args = parser.parse_args()
     filename = args.input_file

@@ -7,7 +7,7 @@ setup(
     author='Martin Siggel',
     author_email=',martin.siggel@dlr.de',
     license='Apache-2.0',
-    requires=['tigl3', 'tigl', 'tixi', 'semver', 'numpy'],
+    install_requires=['tigl3', 'tigl', 'semver', 'numpy'],
     packages=['cpacs2to3'],
     entry_points={
         'console_scripts': ['cpacs2to3 = cpacs2to3.cpacs_converter:main']}
