@@ -3,7 +3,10 @@ import math
 
 import numpy as np
 import tigl3.configuration
-from OCC.Core.TopoDS import topods
+try:
+    from OCC.TopoDS import topods
+except ImportError:
+    from OCC.Core.TopoDS import topods
 from tigl import tiglwrapper
 from tigl3 import tigl3wrapper
 from tigl3.configuration import transform_wing_profile_geometry
@@ -23,7 +26,7 @@ def get_new_cs_coordinates(tigl2, tigl3, compseg_uid, eta_old, xsi_old):
     return tigl3.wingComponentSegmentPointGetEtaXsi(compseg_uid, px, py, pz)
 
 
-def convert_eta_xsi_values(tixi3, tigl2, tigl3):
+def convert_eta_xsi_values(tixi3, tigl2, tigl3, configuration=''):
     """
     Converts all eta and xsi coordinates from the old component segment eta/xsi space to the new one
     :param tixi3: TiXI 3 handle
@@ -145,7 +148,7 @@ def convert_eta_xsi_values(tixi3, tigl2, tigl3):
     # reopen as we changed the TiXI document underneath
     # otherwise the changes to the TiXI document will be overwritten when TiGL saves the document
     logging.info("Reloading CPACS-3 file with TiGL 3")
-    tigl3.open(tixi3, '')
+    tigl3.open(tixi3, configuration)
 
 
 def get_chord_scale(wing, wing_connection):
@@ -347,18 +350,24 @@ def convert_guide_curve_points(tixi3, tixi2, tigl2, tigl3, keep_unused_profiles=
             tixi3.addFloatVector(xpathProfile + "/pointList", "rZ", rZ, len(rZ), "%g")
 
 
-def convert_geometry(filename, new_cpacs_file, old_cpacs_file):
+def convert_geometry(filename, new_cpacs_file, old_cpacs_file, configurations=None):
     """
     Geometric conversion main routine
     :return:
     """
+    logger = logging.getLogger(__name__)
+    if configurations is None or len(configurations) == 0:
+        logger.info('No configuration provided.')
+        configurations = tixihelper.list_configurations(old_cpacs_file)
+        logger.info('Running conversion for {}'.format(', '.join(configurations)))
+    for iconfig in configurations:
+        logger.info('Converting `{}`'.format(iconfig))
+        tigl2 = tiglwrapper.Tigl()
+        logging.info("Loading CPACS-2 file '" + filename + "' with TiGL 2")
+        tigl2.open(old_cpacs_file, iconfig)
+        logging.info("Loading CPACS-3 file with TiGL 3")
+        tigl3 = tigl3wrapper.Tigl3()
+        tigl3.open(new_cpacs_file, iconfig)
 
-    tigl2 = tiglwrapper.Tigl()
-    logging.info("Loading CPACS-2 file '" + filename + "' with TiGL 2")
-    tigl2.open(old_cpacs_file, "")
-    logging.info("Loading CPACS-3 file with TiGL 3")
-    tigl3 = tigl3wrapper.Tigl3()
-    tigl3.open(new_cpacs_file, "")
-
-    convert_guide_curve_points(new_cpacs_file, old_cpacs_file, tigl2, tigl3)
-    convert_eta_xsi_values(new_cpacs_file, tigl2, tigl3)
+        convert_guide_curve_points(new_cpacs_file, old_cpacs_file, tigl2, tigl3)
+        convert_eta_xsi_values(new_cpacs_file, tigl2, tigl3, configuration=iconfig)

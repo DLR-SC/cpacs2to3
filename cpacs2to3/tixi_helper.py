@@ -79,3 +79,9 @@ def next_parent_uid(tixi_handle, current_path):
         parent_uid = ''
 
     return parent_uid, elem
+
+
+def list_configurations(tixih):
+    models = resolve_xpaths(tixih, '//vehicles/*/model')
+    configuration = [tixih.getTextAttribute(imodel, 'uID') for imodel in models]
+    return configuration
